@@ -15,7 +15,12 @@ reclaimPolicy: Delete # delete the PV when the PVC is deleted, other is Retain
 volumeBindingMode: Immediate # instant provision
 allowVolumeExpansion: true # do not block volume expansion
 mountOptions:
-  - hard # wait for NFS server instead of corrupting data
+  # Soft mounts for the disposable k3d/dev cluster: if the NFS server or export
+  # disappears, mounts fail fast instead of blocking pod termination forever
+  # (a hard mount is the safe choice for production with reliable storage).
+  - soft
+  - timeo=100 # 10 seconds per retransmission
+  - retrans=3
   - nfsvers=4.1 # better stability
   - noatime # avoid updating time access
   - rsize=1048576  # write block size (1MB)
