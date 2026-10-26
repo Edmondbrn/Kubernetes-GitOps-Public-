@@ -13,7 +13,7 @@ spec:
     matchLabels:
       io.kompose.service: next-frontend
   template:
-    metadata:
+    metadata: 
       annotations:
         kompose.cmd: kompose --file docker-compose.yml convert
         kompose.version: 1.38.0 (a8f5d1cbd)
@@ -30,7 +30,7 @@ spec:
         seccompProfile:
           type: "RuntimeDefault"
       containers:
-        - image: mudis_next_prod:1.0.0
+        - image: ghcr.io/edmondbrn/mudis_next_prod:1.0.0
           name: nextjs-server
           securityContext:
             allowPrivilegeEscalation: false

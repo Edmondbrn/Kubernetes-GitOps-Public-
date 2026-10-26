@@ -35,8 +35,8 @@ spec:
           runAsUser: 0 # root to change permission
 
       containers:
-        - image: mudis_virt_prod:1.0.0
-          name: holographsql
+        - image: ghcr.io/edmondbrn/mudis_virt_prod:1.0.0
+          name: holographrdf
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

@@ -72,7 +72,7 @@ spec:
             echo "Virtuoso is up"
 
       containers:
-        - image: mudis_fastapi_prod:1.0.0
+        - image: ghcr.io/edmondbrn/mudis_fastapi_prod:1.0.0
           name: fastapi-server
           securityContext:
             allowPrivilegeEscalation: false

@@ -107,6 +107,17 @@ kubectl -n mudis-dev exec deploy/nfs-server -- \
 kubectl -n mudis-dev delete pod <pod> --grace-period=0 --force
 ```
 
+If a whole namespace deletion hangs, run the cleanup helper:
+
+```bash
+./dev-setup/k8s/delete_namespace.sh mudis-dev
+```
+
+It force-deletes the pods (which unblocks the namespace controller) and removes
+the dangling finalizers from the released `nfs-csi` PVs. In the app-of-apps
+layout the NFS server will live in the `platform` namespace, so deleting the
+application namespace no longer takes the storage server down with it.
+
 The `nfs-csi` StorageClass uses `soft` mounts in this dev setup so a missing
 NFS server cannot block pod termination forever. Use `hard` mounts for
 production storage.
