@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    io.kompose.service: celery-data
+  name: celery-data
+spec:
+  accessModes:
+    - ReadWriteMany # fastapi can write in the volume and Celery can read it
+  storageClassName: nfs-csi
+  resources:
+    requests:
+      storage: 100Mi

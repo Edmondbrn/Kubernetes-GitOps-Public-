@@ -1,0 +1,2 @@
+0 0 * * * /scripts/pg_backup.sh >> /var/log/pg_backup.log 2>&1
+30 2 * * * /scripts/pg_backup_cleanup.sh >> /var/log/pg_backup.log 2>&1

@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: mudis-dev
+
+resources:
+  - ../../base
+  - namespace.yaml
+
+# Container images are private GHCR packages.
+# Ask the repository owner for access, then create the pull secret locally:
+#   kubectl -n mudis-dev create secret docker-registry ghcr-pull \
+#     --docker-server=ghcr.io --docker-username=<user> --docker-password=<PAT>
+# The pull secret is never committed to this repository.
+images:
+  - name: mudis_fastapi_prod
+    newName: ghcr.io/<github-user>/holograph-backend
+    newTag: "1.0.0"
+  - name: mudis_next_prod
+    newName: ghcr.io/<github-user>/holograph-frontend
+    newTag: "1.0.0"
+  - name: mudis_postgres_prod
+    newName: ghcr.io/<github-user>/holograph-postgres
+    newTag: "1.0.0"
+  - name: mudis_virt_prod
+    newName: ghcr.io/<github-user>/holograph-virtuoso
+    newTag: "1.0.0"
+
+# Kubernetes secrets are committed as SealedSecrets under
+# manifest/base/secrets (see the README). Plaintext secrets are never published.

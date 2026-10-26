@@ -1,0 +1,222 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose --file docker-compose.yml convert
+    kompose.version: 1.38.0 (a8f5d1cbd)
+  labels:
+    io.kompose.service: fastapi-backend
+  name: fastapi-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: fastapi-backend
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose --file docker-compose.yml convert
+        kompose.version: 1.38.0 (a8f5d1cbd)
+      labels:
+        io.kompose.service: fastapi-backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000 # custom app user id see Dockerfile
+        runAsGroup: 1000
+        fsGroup: 1000 
+        seccompProfile:
+          type: "RuntimeDefault"
+      # wait for databases initialisation
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:18-alpine
+        env:
+          - name: PGUSER # overwrite default pg user because uid 1000 does not have any account
+            valueFrom:
+              configMapKeyRef:
+                name: mudis-config
+                key: DB_ADMIN_USER
+        command:
+          - sh
+          - -c
+          - |
+            echo "Waiting for PostgreSQL..."
+            until pg_isready -h postgres -p 5432; do
+              sleep 2
+            done
+            echo "PostgreSQL is up"
+      - name: wait-for-redis
+        image: redis:8-alpine
+        command:
+          - sh
+          - -c
+          - |
+            echo "Waiting for Redis..."
+            until redis-cli -h redis -p 6379 ping | grep -q "PONG"; do
+              sleep 2
+            done
+            echo "Redis is up"
+      - name: wait-for-virtuoso
+        image: busybox:1.38
+        command:
+          - sh
+          - -c
+          - |
+            echo "Waiting for Virtuoso..."
+            until wget -qO /dev/null http://virtuoso:8890/sparql; do
+              sleep 2
+            done
+            echo "Virtuoso is up"
+
+      containers:
+        - image: mudis_fastapi_prod:1.0.0
+          name: fastapi-server
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests: # for scheduling step
+              memory: "512Mi"
+              cpu: "1000m"
+            limits: # for runtime step
+              memory: "1024Mi"
+              cpu: "1000m"
+          # open port for ClusterIP
+          ports:
+            - containerPort: 8000
+              protocol: TCP 
+          # block ready and live prob until startup probe has ended
+          startupProbe:
+            exec:
+              command:
+                - python3
+                - -c
+                - import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/health', timeout=3).status==200 else sys.exit(1)
+            failureThreshold: 5
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 5
+          livenessProbe: # provoke pod restart if failed
+            exec:
+              command:
+                - python3
+                - -c
+                - import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/health', timeout=3).status==200 else sys.exit(1)
+            failureThreshold: 5
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe: # no restart if failed but stuck in pending state
+            exec:
+              command:
+                - python3
+                - -c
+                - import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/health', timeout=3).status==200 else sys.exit(1)
+            failureThreshold: 5
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 5
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          envFrom:
+            - configMapRef:
+                name: mudis-config
+          volumeMounts:
+            - mountPath: /run/secrets/DB_USER_PASSWORD
+              name: db-user-password
+              subPath: db-user-password
+            - mountPath: /run/secrets/DB_PASSWORD_ADMIN
+              name: db-password-admin
+              subPath: db-password-admin
+            - mountPath: /run/secrets/DB_PASSWORD_ANON
+              name: db-password-anon
+              subPath: db-password-anon
+            - mountPath: /run/secrets/DB_PASSWORD_CRON
+              name: db-password-cron
+              subPath: db-password-cron
+            - mountPath: /run/secrets/DBA_PASSWORD
+              name: dba-password
+              subPath: dba-password
+            - mountPath: /run/secrets/JWT_SECRET_KEY
+              name: jwt-secret-key
+              subPath: jwt-secret-key
+            - mountPath: /run/secrets/SEED_ADMIN_PASSWORD
+              name: seed-admin-password
+              subPath: seed-admin-password
+            - mountPath: /run/secrets/DB_APP_ADMIN_PASSWORD
+              name: db-app-admin-password
+              subPath: db-app-admin-password
+            # file sharing
+            - mountPath: /celery/write
+              name: celery-data
+            - mountPath: /user-results/read
+              name: user-results
+              readOnly: true
+            - mountPath: /var/log/app
+              name: app-logs
+      volumes:
+        # PVC
+        - name: celery-data
+          persistentVolumeClaim:
+            claimName: celery-data
+        - name: user-results
+          persistentVolumeClaim:
+            claimName: user-results
+            readOnly: true
+        - name: app-logs
+          persistentVolumeClaim:
+            claimName: app-logs
+            
+        # Secret mounting
+        - name: db-user-password
+          secret:
+            items:
+              - key: db-user-password
+                path: db-user-password
+            secretName: db-user-password
+        - name: db-password-admin
+          secret:
+            items:
+              - key: db-password-admin
+                path: db-password-admin
+            secretName: db-password-admin
+        - name: db-password-anon
+          secret:
+            items:
+              - key: db-password-anon
+                path: db-password-anon
+            secretName: db-password-anon
+        - name: db-password-cron
+          secret:
+            items:
+              - key: db-password-cron
+                path: db-password-cron
+            secretName: db-password-cron
+        - name: dba-password
+          secret:
+            items:
+              - key: dba-password
+                path: dba-password
+            secretName: dba-password
+        - name: jwt-secret-key
+          secret:
+            items:
+              - key: jwt-secret-key
+                path: jwt-secret-key
+            secretName: jwt-secret-key
+        - name: seed-admin-password
+          secret:
+            items:
+              - key: seed-admin-password
+                path: seed-admin-password
+            secretName: seed-admin-password
+        - name: db-app-admin-password
+          secret:
+            items:
+              - key: db-app-admin-password
+                path: db-app-admin-password
+            secretName: db-app-admin-password

@@ -1,0 +1,221 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+
+# allow NFS call from nodes
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-nfs-from-nodes
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: nfs-server
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 10.42.0.0/16
+      ports:
+        - protocol: TCP
+          port: 2049
+
+---
+
+# Aloow DNS resolution for pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+
+# databases allow request from fastapi
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-to-databases
+spec:
+  podSelector:
+      matchExpressions:
+        - key: io.kompose.service
+          operator: In
+          values:
+            - redis
+            - postgres
+            - virtuoso  
+  policyTypes:
+    - Ingress
+
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: io.kompose.service
+                operator: In
+                values:
+                  - fastapi-backend
+                  - celery-worker
+        - podSelector:
+            matchLabels:
+              io.kompose.service: postgres-backup
+      ports:
+        - protocol: TCP
+          port: 6379  # Redis
+        - protocol: TCP
+          port: 5432  # Postgres
+        - protocol: TCP
+          port: 8890  # Virtuoso (HTTP)
+
+
+---
+
+# allow FastAPI to perform request to databases
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-egress
+spec:
+  podSelector:
+    matchExpressions:
+      - key: io.kompose.service
+        operator: In
+        values:
+          - fastapi-backend
+          - celery-worker
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchExpressions:
+              - key: io.kompose.service
+                operator: In
+                values:
+                  - redis
+                  - postgres
+                  - virtuoso
+      ports:
+        - protocol: TCP
+          port: 6379  # Redis
+        - protocol: TCP
+          port: 5432  # Postgres
+        - protocol: TCP
+          port: 8890  # Virtuoso (HTTP)
+
+---
+
+# Allow the backup CronJob to reach postgres (egress is denied by default)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres-backup-egress
+spec:
+  podSelector:
+    matchLabels:
+      io.kompose.service: postgres-backup
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              io.kompose.service: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+
+---
+
+# FastAPI accept request from Next
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-to-backend
+spec:
+  podSelector:
+    matchLabels:
+      io.kompose.service: fastapi-backend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              io.kompose.service: next-frontend
+      ports:
+        - protocol: TCP
+          port: 8000
+
+---
+
+# Allow Nextjs to perform request to FastAPI
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-egress
+spec:
+  podSelector:
+    matchLabels:
+      io.kompose.service: next-frontend
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              io.kompose.service: fastapi-backend
+      ports:
+        - protocol: TCP
+          port: 8000
+
+---
+
+# Allow Treafik to forward request to NextJs
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-frontend
+spec:
+  podSelector:
+    matchLabels:
+      io.kompose.service: next-frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        - protocol: TCP
+          port: 3000

@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nfs-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nfs-server
+    spec:
+      nodeSelector: # force the NFS pod on the server node
+        kubernetes.io/hostname: k3d-mycluster-server-0
+      containers:
+        - name: nfs-server
+          image: itsthenetwork/nfs-server-alpine:3.9.3
+          env:
+            - name: SHARED_DIRECTORY
+              value: "/exports"
+          securityContext:
+            privileged: true  # needed fo the NFS daemon in the contanier
+          ports:
+            - containerPort: 2049
+              name: tcp-2049
+          volumeMounts:
+            - mountPath: /exports
+              name: nfs-vol
+      volumes:
+        - name: nfs-vol
+          hostPath: # K3d storage type to create a NFS server, not for production because it grant access to the host file system
+            path: /shared-data # folder at host machine
+            type: DirectoryOrCreate

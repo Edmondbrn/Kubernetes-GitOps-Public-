@@ -1,0 +1,44 @@
+apiVersion: v1
+data:
+  ACCESS_TOKEN_NAME: access_token
+  ANON_RATE_LIMIT: "20"
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+  DB_ADMIN_USER: admin_mudis4ls
+  DB_APP_ADMIN_USER: app_admin
+  DB_HOST: postgres
+  DB_NAME: HolographSQL
+  DB_PORT: "5432"
+  DB_USER: mudis_user
+  DEBUG: "false"
+  DOCKER_VIRTUOSO_URL: http://virtuoso:8890/sparql-auth
+  ENVIRONMENT: dev
+  JWT_ALGORITHM: HS256
+  LOG_DIR: /var/log/app
+  LOG_FILE_BACKUP_COUNT: "5"
+  LOG_FILE_COMPRESS: "true"
+  LOG_FILE_MAX_BYTES: "10000000"
+  NEXT_FAST_API_URL: http://fastapi-backend:8000
+  NEXT_PUBLIC_API_URL: http://localhost:3000/api/v1
+  NEXT_TELEMETRY_DEBUG: "1"
+  RATE_LIMITER_REDIS_URL: redis://redis:6379/1
+  REFRESH_TOKEN_EXPIRE_DAYS: "7"
+  REFRESH_TOKEN_NAME: refresh_token
+  SEED_ADMIN_EMAIL: admin@example.com
+  SEED_ADMIN_USERNAME: Administrator
+  SERVICE_NAME: api
+  TRUST_PROXY_HEADERS: "false"
+  TRUSTED_PROXY_CIDRS: ""
+  USER_RATE_LIMIT: "100"
+  VIRT_HTTP_PORT: "8890"
+  VIRT_ISQL_PORT: "1111"
+  VIRT_SPARQL_DEFAULTQUERY: select distinct ?Concept where {[] a ?Concept} LIMIT 100
+  VIRTUOSO_ACQUIRE_TIMEOUT: "30"
+  VIRTUOSO_LONG_MAX: "3"
+  VIRTUOSO_POOL_ENABLED: "false"
+  VIRTUOSO_REDIS_URL: redis://redis:6379/2
+  VIRTUOSO_SHORT_MAX: "10"
+  WEB_VIRTUOSO_URL: http://localhost:8890/sparql-auth
+kind: ConfigMap
+metadata:
+  name: mudis-config

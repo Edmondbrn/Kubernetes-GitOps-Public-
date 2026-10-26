@@ -1,0 +1,317 @@
+# =====================================================================
+# PRODUCTION docker-compose file
+# Run with: docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#
+# Assumptions (see with Matéo):
+#   - next_frontend is the only service Traefik talks to. It proxies
+#     /api/* calls to fastapi_backend itself over the internal network,
+#     so fastapi_backend is never exposed to Traefik or the host.
+#   - Images are pre-built by CI and pulled from the registry (no
+#     `build:` here) - see the updated .gitlab-ci.yml.
+#   - "DB_ADMIN_USER" / "DB_NAME" / registry vars are non-secret and
+#     come from .env.prod (see generate_prod_env.sh).
+# =====================================================================
+
+networks:
+  traefik-public:
+    external: true   # must be created by Traefik admin
+  internal:
+    driver: bridge    # backend-only network, not reachable from outside
+
+secrets:
+  db_user_password:
+    file: ./secrets/db_user_password.txt
+  db_password_anon:
+    file: ./secrets/db_password_anon.txt
+  db_password_cron:
+    file: ./secrets/db_password_cron.txt
+  dba_password:
+    file: ./secrets/dba_password.txt
+  dav_password:
+    file: ./secrets/dav_password.txt
+  jwt_secret_key:
+    file: ./secrets/jwt_secret_key.txt
+  db_password_admin:
+    file: ./secrets/db_password_admin.txt
+  db_app_admin_password:
+    file: ./secrets/db_app_admin_password.txt
+  seed_admin_password:
+    file: ./secrets/seed_admin_password.txt
+
+x-restart-policy: &restart-policy
+  restart: unless-stopped
+
+services:
+
+  # ==========================================================
+  # FastAPI backend - internal only, reached via next_frontend
+  # ==========================================================
+  fastapi_backend:
+    <<: *restart-policy
+    image: ${REGISTRY_IMAGE_BACKEND}:${IMAGE_TAG:-latest}
+    user: "1000:1000"
+    container_name: fastapi_server
+    networks:
+      - internal
+    env_file:
+      - .env.prod
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SERVICE_NAME=api
+    secrets:
+      - source: db_user_password
+        target: DB_USER_PASSWORD
+      - source: db_password_admin
+        target: DB_PASSWORD_ADMIN
+      - source: db_password_anon
+        target: DB_PASSWORD_ANON
+      - source: db_password_cron
+        target: DB_PASSWORD_CRON
+      - source: dba_password
+        target: DBA_PASSWORD
+      - source: jwt_secret_key
+        target: JWT_SECRET_KEY
+      - source: seed_admin_password
+        target: SEED_ADMIN_PASSWORD
+      - source: db_app_admin_password
+        target: DB_APP_ADMIN_PASSWORD
+    volumes:
+      - celery-data:/celery/write
+      - user-results:/user-results/write
+      - app-logs:/var/log/app
+    depends_on:
+      virtuoso:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    mem_limit: 1g
+    mem_reservation: 512m
+    cpus: "1.0"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/health', timeout=3).status==200 else sys.exit(1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+    labels:
+      - "autoheal=true" # restart when unhealthy
+
+  # ==========================================================
+  # Celery worker - internal only
+  # ==========================================================
+  celery_worker:
+    <<: *restart-policy
+    image: ${REGISTRY_IMAGE_BACKEND}:${IMAGE_TAG:-latest}
+    entrypoint: []
+    command: celery -A src.celery_app worker -Q long_tasks --concurrency=3 --prefetch-multiplier=1 --loglevel=info
+    user: "1000:1000"
+    networks:
+      - internal
+    env_file:
+      - .env.prod
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SERVICE_NAME=celery
+    secrets:
+      - source: db_user_password
+        target: DB_USER_PASSWORD
+      - source: db_password_anon
+        target: DB_PASSWORD_ANON
+      - source: db_password_cron
+        target: DB_PASSWORD_CRON
+      - source: dba_password
+        target: DBA_PASSWORD
+      - source: jwt_secret_key
+        target: JWT_SECRET_KEY
+      - source: db_app_admin_password
+        target: DB_APP_ADMIN_PASSWORD
+    volumes:
+      - celery-data:/celery/read:ro
+      - user-results:/user-results/write
+      - app-logs:/var/log/app
+    depends_on:
+      virtuoso:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    mem_limit: 768m
+    mem_reservation: 256m
+    cpus: "0.75"
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A src.celery_app inspect ping -d celery@$$HOSTNAME | grep -q OK || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    labels:
+      - "autoheal=true"
+
+  # ==========================================================
+  # Next.js frontend - the ONLY service Traefik routes to
+  # ==========================================================
+  next_frontend:
+    <<: *restart-policy
+    image: ${REGISTRY_IMAGE_FRONTEND}:${IMAGE_TAG:-latest}
+    container_name: nextJs_server
+    networks:
+      - traefik-public
+      - internal
+    expose:
+      - "3000"          # no host port published, Traefik must reache this over traefik-public
+    env_file:
+      - .env.prod
+    environment:
+      - NEXT_TELEMETRY_DEBUG=${NEXT_TELEMETRY_DEBUG:-0}
+      - REFRESH_TOKEN_NAME=${REFRESH_TOKEN_NAME}
+      - ACCESS_TOKEN_NAME=${ACCESS_TOKEN_NAME}
+      - FAST_API_URL=http://fastapi_server:8000
+    depends_on:
+      fastapi_backend:
+        condition: service_healthy
+    mem_limit: 512m
+    mem_reservation: 256m
+    cpus: "0.5"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+    labels:
+      - "autoheal=true"
+      # --- Traefik labels: PLACEHOLDERS, to be filled ---
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+      - "traefik.http.routers.frontend.rule=Host(`CHANGE_ME.example.com`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=CHANGE_ME"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+
+  # ==========================================================
+  # Virtuoso - internal only
+  # ==========================================================
+  virtuoso:
+    <<: *restart-policy
+    image: docker.io/openlink/virtuoso-opensource-7:7.2.16
+    networks:
+      - internal
+    env_file:
+      - .env.prod
+    environment:
+      - VIRT_PARAMETERS_DIRSALLOWED=., ../vad, /usr/share/proj, /data
+      - VIRT_PARAMETERS_NUMBEROFBUFFERS=${VIRT_PARAMETERS_NUMBEROFBUFFERS:-10000}
+      - VIRT_PARAMETERS_MAXDIRTYBUFFERS=${VIRT_PARAMETERS_MAXDIRTYBUFFERS:-6000}
+      - VIRT_PARAMETERS_MAXTHREADS=${VIRT_PARAMETERS_MAXTHREADS:-100}
+    secrets:
+      - dba_password
+      - dav_password
+    # NOTE: Openlink Virtuoso says that the _FILE prefix is working but do not work on 7.2 image so manual script is mandatory,
+    # This wrapper reads the secret files into env vars
+    # It then call the Openlink start script at /virtuoso-entrypoint.sh
+    # NOTE: do not apt-get install curl here: it delays server start and
+    # breaks the healthcheck (curl missing => exit 127). Healthcheck uses
+    # wget which is already in the base image.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        export DBA_PASSWORD="$$(cat /run/secrets/dba_password)";
+        export DAV_PASSWORD="$$(cat /run/secrets/dav_password)";
+        exec /virtuoso-entrypoint.sh "$$@"
+      - --
+    volumes:
+      - holograph-virtuoso-db:/database
+      - ./virtuoso/data:/data:ro
+      - ./virtuoso/load.sql:/initdb.d/load.sql:ro
+    mem_limit: 4g
+    mem_reservation: 512m
+    cpus: "1.0"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8890/sparql"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+    labels:
+      - "autoheal=true"
+
+  # ==========================================================
+  # Postgres - internal only
+  # ==========================================================
+  postgres:
+    <<: *restart-policy
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
+    image: ghcr.io/<github-user>/holograph-postgres:1.0.0
+    container_name: ${DB_NAME}
+    networks:
+      - internal
+    env_file:
+      - .env.prod
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_ADMIN_USER}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password_admin
+      TZ: ${TZ:-UTC}
+    secrets:
+      - db_password_admin
+    volumes:
+      - ghcr.io/<github-user>/holograph-postgres-db:/var/lib/postgresql/data
+      - ghcr.io/<github-user>/holograph-postgres-backups:/backups
+    mem_limit: 4g
+    mem_reservation: 256m
+    cpus: "1.0"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_ADMIN_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "autoheal=true"
+
+  # ==========================================================
+  # Redis - internal only
+  # ==========================================================
+  redis:
+    <<: *restart-policy
+    image: redis:8-alpine
+    networks:
+      - internal
+    mem_limit: 256m
+    mem_reservation: 64m
+    cpus: "0.25"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    labels:
+      - "autoheal=true"
+
+  # ============================================================
+  # Autoheal: Additional config to let docker compose containers
+  #  restart if they are unhealthy
+  # ============================================================
+  autoheal:
+    <<: *restart-policy
+    image: willfarrell/autoheal:latest
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+      - AUTOHEAL_INTERVAL=10
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    mem_limit: 64m
+    cpus: "0.1"
+
+volumes:
+  ghcr.io/<github-user>/holograph-postgres-db:
+  holograph-virtuoso-db:
+  ghcr.io/<github-user>/holograph-postgres-backups:
+  celery-data:
+  user-results:
+  app-logs:

@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - config/mudis-config.yaml
+  - config/virtuoso-cm2-configmap.yaml
+  - config/network-policy.yaml
+  - cronjobs/postgres-backup-cronjob.yaml
+  - deployments/celery-worker-deployment.yaml
+  - deployments/nfs-server-deployment.yaml
+  - deployments/fastapi-backend-deployment.yaml
+  - deployments/redis-deployment.yaml
+  - deployments/next-frontend-deployment.yaml
+  - services/fastapi-backend-service.yaml
+  - services/postgres-service.yaml
+  - services/nfs-server-service.yaml
+  - services/virtuoso-service.yaml
+  - services/next-frontend-service.yaml
+  - services/redis-service.yaml
+  - storage/nfs-storage.yaml
+  - storage/app-logs-persistentvolumeclaim.yaml
+  - storage/celery-data-persistentvolumeclaim.yaml
+  - storage/postgres-backups-persistentvolumeclaim.yaml
+  - storage/user-results-persistentvolumeclaim.yaml
+  - statefulsets/postgres-statefulset.yaml
+  - statefulsets/virtuoso-statefulset.yaml

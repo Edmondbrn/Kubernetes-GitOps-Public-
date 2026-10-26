@@ -1,0 +1,33 @@
+
+# for apps connected to postgres
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose --file docker-compose.yml convert
+    kompose.version: 1.38.0 (a8f5d1cbd)
+  labels:
+    io.kompose.service: postgres
+  name: postgres
+spec:
+  type: ClusterIP
+  ports:
+    - name: "5432"
+      port: 5432
+      targetPort: 5432
+  selector:
+    io.kompose.service: postgres
+
+
+---
+# for postgres statefulsets
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    io.kompose.service: postgres-headless
+  name: postgres-headless
+spec:
+  clusterIP: None
+  selector:
+    io.kompose.service: postgres

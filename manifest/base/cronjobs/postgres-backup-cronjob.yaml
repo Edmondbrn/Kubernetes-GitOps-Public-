@@ -1,0 +1,102 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  labels:
+    io.kompose.service: postgres-backup
+spec:
+  # 00:00 UTC: dump the database, then prune dumps older than 15 days
+  schedule: "0 0 * * *"
+  timeZone: "Etc/UTC"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            io.kompose.service: postgres-backup
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            # same user as the postgres StatefulSet (postgres id on Alpine)
+            runAsUser: 70
+            runAsGroup: 70
+            fsGroup: 70
+            seccompProfile:
+              type: "RuntimeDefault"
+
+          initContainers:
+          - name: init-permissions
+            image: busybox:1.36
+            command: ['sh', '-c', 'chown -R 70:70 /backups']
+            volumeMounts:
+            - name: postgres-backups
+              mountPath: /backups
+            securityContext:
+              runAsNonRoot: false
+              runAsUser: 0 # root to change permission
+
+          containers:
+            - name: backup
+              image: mudis_postgres_prod:1.0.0
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -e
+                  /scripts/pg_backup.sh
+                  /scripts/pg_backup_cleanup.sh
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+              resources:
+                requests:
+                  memory: 128Mi
+                  cpu: 100m
+                limits:
+                  memory: 256Mi
+                  cpu: 500m
+              env:
+                # pg_dump talks to the ClusterIP service over TCP
+                - name: PGHOST
+                  value: postgres
+                - name: PGPORT
+                  value: "5432"
+                - name: POSTGRES_DB
+                  valueFrom:
+                    configMapKeyRef:
+                      name: mudis-config
+                      key: DB_NAME
+                - name: POSTGRES_USER
+                  valueFrom:
+                    configMapKeyRef:
+                      name: mudis-config
+                      key: DB_ADMIN_USER
+                - name: POSTGRES_PASSWORD_FILE
+                  value: /run/secrets/db-password-admin
+                - name: TZ
+                  value: "Etc/UTC"
+              volumeMounts:
+                - mountPath: /backups
+                  name: postgres-backups
+                - mountPath: /run/secrets/db-password-admin
+                  name: db-password-admin
+                  subPath: db-password-admin
+                  readOnly: true
+          volumes:
+            - name: postgres-backups
+              persistentVolumeClaim:
+                claimName: postgres-backups
+            - name: db-password-admin
+              secret:
+                secretName: db-password-admin
+                items:
+                  - key: db-password-admin
+                    path: db-password-admin

@@ -1,0 +1,32 @@
+# python files
+__pycache__
+.coverage
+coverage.xml
+lcov.info
+
+# React files
+node_modules/
+
+# deepimpact data
+virtuoso/data/deepimpact
+
+
+
+# General
+.env*
+fuseki-data/
+rdf-data/
+design-logs/
+todo.md
+dev-setup/virtuoso/
+# plaintext secrets only (SealedSecrets live in manifest/base/secrets)
+/secrets/
+manifest/secrets/
+manifest/overlays/k3d/secrets/
+PRODUCT.md
+
+manifest.kompose.bak/
+
+# GitOps secrets (never commit)
+sealed-secrets-master-key.yaml
+ghcr-pull-secret.yaml

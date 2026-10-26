@@ -1,0 +1,38 @@
+# get the minimized Alpine image
+FROM python:3.13-alpine
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# create the work directory
+WORKDIR /app
+
+# Create non root user
+RUN addgroup -g 1000 appuser && \
+    adduser -u 1000 -G appuser -s /bin/sh -D appuser && \
+    chown -R appuser:appuser /app
+
+# Install dependencies (as root for system-wide install)
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project --no-dev
+
+# give right to the app user
+RUN chown -R appuser:appuser /app/.venv
+
+# import start script and change permission
+COPY start_backend_dev.sh .
+RUN chmod +x start_backend_dev.sh
+
+# give write right
+RUN mkdir -p /celery/write && chown -R appuser:appuser /celery/write
+RUN mkdir -p /user-results/write && chown -R appuser:appuser /user-results/write
+RUN mkdir -p /var/log/app && chown -R appuser:appuser /var/log/app
+# import project files as appuser
+USER appuser
+COPY --chown=appuser:appuser . .
+
+# Ensure the venv is on PATH
+ENV PATH="/app/.venv/bin:$PATH"
+
+# start the app
+ENTRYPOINT ["sh", "./start_backend_dev.sh"]

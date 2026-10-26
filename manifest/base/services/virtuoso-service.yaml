@@ -1,0 +1,32 @@
+# for apps
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose --file docker-compose.yml convert
+    kompose.version: 1.38.0 (a8f5d1cbd)
+  labels:
+    io.kompose.service: virtuoso
+  name: virtuoso
+spec:
+  type: ClusterIP
+  ports:
+    - name: "8890"
+      port: 8890
+      targetPort: 8890
+  selector:
+    io.kompose.service: virtuoso
+
+
+---
+# for virtuoso statefulsets
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    io.kompose.service: virtuoso-headless
+  name: virtuoso-headless
+spec:
+  clusterIP: None
+  selector:
+    io.kompose.service: virtuoso

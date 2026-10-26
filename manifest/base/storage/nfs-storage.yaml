@@ -1,0 +1,22 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-csi
+  annotations:
+     storageclass.kubernetes.io/is-default-class: "false"  # default is local host
+provisioner: nfs.csi.k8s.io
+parameters:
+  server: nfs-server.mudis-dev.svc.cluster.local
+  share: "/"
+  uid: "1000" # subdirectory owner, matches runAsUser in workloads
+  gid: "1000" # subdirectory group, matches runAsGroup in workloads
+  mountPermissions: "0775" # driver chmods the mounted folder
+reclaimPolicy: Delete # delete the PV when the PVC is deleted, other is Retain
+volumeBindingMode: Immediate # instant provision
+allowVolumeExpansion: true # do not block volume expansion
+mountOptions:
+  - hard # wait for NFS server instead of corrupting data
+  - nfsvers=4.1 # better stability
+  - noatime # avoid updating time access
+  - rsize=1048576  # write block size (1MB)
+  - wsize=1048576 # write block size (1MB)

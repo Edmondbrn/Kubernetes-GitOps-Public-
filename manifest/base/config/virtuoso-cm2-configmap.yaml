@@ -1,0 +1,16 @@
+apiVersion: v1
+data:
+  load.sql: |-
+    ld_dir('/data/rdf-class', '*.ttl', 'model-graph');
+    ld_dir('/data/chicken', '*.ttl.gz', 'data-graph');
+    ld_dir('/data/deepimpact', '*.ttl.gz', 'data-graph');
+    rdf_loader_run();
+
+    rdfs_rule_set('sub_class_rules', 'model-graph');
+kind: ConfigMap
+metadata:
+  annotations:
+    use-subpath: "true"
+  labels:
+    io.kompose.service: virtuoso-configmap
+  name: virtuoso-cm2

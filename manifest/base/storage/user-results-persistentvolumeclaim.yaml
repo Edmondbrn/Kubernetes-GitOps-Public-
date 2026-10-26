@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    io.kompose.service: user-results
+  name: user-results
+spec:
+  accessModes:
+    - ReadWriteMany # read by fastapi and written by celery
+  storageClassName: nfs-csi
+  resources:
+    requests:
+      storage: 100Mi
