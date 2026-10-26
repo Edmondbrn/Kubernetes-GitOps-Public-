@@ -3,7 +3,7 @@ services:
     image: postgres:18-alpine
     container_name: test_postgres_db
     volumes:
-      - ghcr.io/<github-user>/holograph-postgres18-test-db:/var/lib/postgresql
+      - mudis4ls-is5-postgres18-test-db:/var/lib/postgresql
     environment:
       POSTGRES_DB: test_postgres_db
       POSTGRES_USER: postgres
@@ -42,7 +42,7 @@ services:
       - ./virtuoso/test-data:/data:ro
       - ./virtuoso/load-test.sql:/initdb.d/load.sql:ro
       # Contains the database files
-      - holograph-virtuoso-test-db:/database
+      - mudis4ls-is5-virtuoso-test-db:/database
     labels:
       - com.centurylinklabs.watchtower.enable=true
 
@@ -53,5 +53,5 @@ services:
       - "6379:6379"
 
 volumes:
-  ghcr.io/<github-user>/holograph-postgres18-test-db:
-  holograph-virtuoso-test-db:
+  mudis4ls-is5-postgres18-test-db:
+  mudis4ls-is5-virtuoso-test-db:
