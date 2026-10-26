@@ -4,6 +4,8 @@ metadata:
   name: nfs-server
 spec:
   replicas: 1
+  strategy:
+    type: Recreate # a single NFS server; never run two exports side by side
   selector:
     matchLabels:
       app.kubernetes.io/name: nfs-server
@@ -25,6 +27,15 @@ spec:
           ports:
             - containerPort: 2049
               name: tcp-2049
+          startupProbe:
+            tcpSocket:
+              port: tcp-2049
+            failureThreshold: 30
+            periodSeconds: 2
+          readinessProbe:
+            tcpSocket:
+              port: tcp-2049
+            periodSeconds: 5
           volumeMounts:
             - mountPath: /exports
               name: nfs-vol

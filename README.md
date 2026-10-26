@@ -89,6 +89,28 @@ Prerequisites:
   (`kubectl -n kube-system get secret -l sealedsecrets.bitnami.com/sealed-secrets-key=active -o yaml`).
   Losing it makes the committed `SealedSecret` resources undecryptable.
 
+### k3d / NFS troubleshooting
+
+The local NFS server backs the `RWX` volumes (`app-logs`, `celery-data`,
+`user-results`). Its data directory must live outside `/tmp`; the helper script
+uses `$HOME/.local/share/holograph/nfs-data` (override with `NFS_DATA_DIR`).
+
+If that directory is lost while the PVs still exist, mounts fail with
+`No such file or directory`, and pods can stay in `Unknown`/`Terminating`:
+
+```bash
+# Recreate the missing export subdirectories (names = PV names)
+kubectl -n mudis-dev exec deploy/nfs-server -- \
+  sh -c 'ls /exports; mkdir -p /exports/<pv-name>'
+
+# Force-delete pods the kubelet can no longer finalize
+kubectl -n mudis-dev delete pod <pod> --grace-period=0 --force
+```
+
+The `nfs-csi` StorageClass uses `soft` mounts in this dev setup so a missing
+NFS server cannot block pod termination forever. Use `hard` mounts for
+production storage.
+
 ## GitOps (Argo CD)
 
 Argo CD watches this repository and syncs the `platform` and `mudis`
