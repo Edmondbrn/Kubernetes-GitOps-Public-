@@ -18,7 +18,7 @@ spec:
         kubernetes.io/hostname: k3d-mycluster-server-0
       containers:
         - name: nfs-server
-          image: itsthenetwork/nfs-server-alpine:3.9.3
+          image: itsthenetwork/nfs-server-alpine:11
           env:
             - name: SHARED_DIRECTORY
               value: "/exports"
