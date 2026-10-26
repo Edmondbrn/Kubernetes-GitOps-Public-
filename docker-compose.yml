@@ -228,7 +228,7 @@ services:
     secrets:
       - db_password_admin
     volumes:
-      - ghcr.io/<github-user>/holograph-postgres-db:/var/lib/postgresql
+      - holograph-postgres-db:/var/lib/postgresql
     ports:
       - "5000:5432"
     healthcheck:
@@ -252,7 +252,7 @@ services:
       retries: 5
 
 volumes:
-  ghcr.io/<github-user>/holograph-postgres-db:
+  holograph-postgres-db:
   holograph-virtuoso-db:
   celery-data:
   user-results:

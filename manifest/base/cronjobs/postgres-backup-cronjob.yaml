@@ -21,6 +21,8 @@ spec:
           labels:
             io.kompose.service: postgres-backup
         spec:
+          imagePullSecrets:
+            - name: ghcr-pull
           restartPolicy: Never
           securityContext:
             runAsNonRoot: true

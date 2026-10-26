@@ -14,16 +14,16 @@ resources:
 # The pull secret is never committed to this repository.
 images:
   - name: mudis_fastapi_prod
-    newName: ghcr.io/<github-user>/holograph-backend
+    newName: ghcr.io/edmondbrn/mudis_fastapi_prod
     newTag: "1.0.0"
   - name: mudis_next_prod
-    newName: ghcr.io/<github-user>/holograph-frontend
+    newName: ghcr.io/edmondbrn/mudis_next_prod
     newTag: "1.0.0"
   - name: mudis_postgres_prod
-    newName: ghcr.io/<github-user>/holograph-postgres
+    newName: ghcr.io/edmondbrn/mudis_postgres_prod
     newTag: "1.0.0"
   - name: mudis_virt_prod
-    newName: ghcr.io/<github-user>/holograph-virtuoso
+    newName: ghcr.io/edmondbrn/mudis_virt_prod
     newTag: "1.0.0"
 
 # Kubernetes secrets are committed as SealedSecrets under

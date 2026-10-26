@@ -16,6 +16,7 @@ resources:
   - services/virtuoso-service.yaml
   - services/next-frontend-service.yaml
   - services/redis-service.yaml
+  - secrets
   - storage/nfs-storage.yaml
   - storage/app-logs-persistentvolumeclaim.yaml
   - storage/celery-data-persistentvolumeclaim.yaml

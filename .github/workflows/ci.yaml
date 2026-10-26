@@ -48,7 +48,7 @@ jobs:
       DB_NAME: test_postgres_db
       REFRESH_TOKEN_EXPIRE_DAYS: 7
       ENVIRONMENT: dev
-      SEED_ADMIN_EMAIL: admin@inrae.fr
+      SEED_ADMIN_EMAIL: admin@example.com
       SEED_ADMIN_USERNAME: admin
       SEED_ADMIN_PASSWORD: test_password_admin
       VIRTUOSO_POOL_ENABLED: false
@@ -184,7 +184,7 @@ jobs:
       - name: Compute image name and short SHA
         id: vars
         run: |
-          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}/mudis_${{ matrix.name }}_prod" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/mudis_${{ matrix.name }}_prod" >> "$GITHUB_OUTPUT"
           echo "sha=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3

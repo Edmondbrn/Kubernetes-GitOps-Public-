@@ -37,12 +37,14 @@ docker-compose*.yml / docker.sh / start.sh   compose reference workflow
 
 Images are published as **private** GitHub Container Registry packages:
 
-| Image                                    | Component        |
-| ---------------------------------------- | ---------------- |
-| `ghcr.io/<github-user>/holograph-backend`  | FastAPI + Celery |
-| `ghcr.io/<github-user>/holograph-frontend` | Next.js          |
-| `ghcr.io/<github-user>/holograph-postgres` | PostgreSQL 18    |
-| `ghcr.io/<github-user>/holograph-virtuoso` | OpenLink Virtuoso |
+| Image                                    | Component         |
+| ---------------------------------------- | ----------------- |
+| `ghcr.io/edmondbrn/mudis_fastapi_prod`   | FastAPI + Celery  |
+| `ghcr.io/edmondbrn/mudis_next_prod`      | Next.js           |
+| `ghcr.io/edmondbrn/mudis_postgres_prod`  | PostgreSQL 18     |
+| `ghcr.io/edmondbrn/mudis_virt_prod`      | OpenLink Virtuoso |
+
+All images are tagged `1.0.0` in `manifest/overlays/k3d/kustomization.yaml`.
 
 Request access from the repository owner, then create the pull secret locally
 (it is intentionally **not** committed):
@@ -51,17 +53,28 @@ Request access from the repository owner, then create the pull secret locally
 kubectl create namespace mudis-dev
 kubectl -n mudis-dev create secret docker-registry ghcr-pull \
   --docker-server=ghcr.io \
-  --docker-username=<github-user> \
+  --docker-username=edmondbrn \
   --docker-password=<PAT-with-read:packages>
 ```
 
-Add `imagePullSecrets: [{name: ghcr-pull}]` to the workloads (or to the
-default ServiceAccount) before deploying.
+The workloads reference this secret through `imagePullSecrets: [{name: ghcr-pull}]`,
+so create it in the `mudis-dev` namespace before the pods start.
 
 ## Deploy on k3d
 
 ```bash
 k3d cluster create mycluster --agents 2 --servers 1
+
+# Sealed Secrets controller (the private key stays in the cluster)
+kubectl apply -f https://github.com/bitnami/sealed-secrets/releases/download/v0.41.2/controller.yaml
+
+# Namespace + GHCR pull secret (never committed)
+kubectl create namespace mudis-dev
+kubectl -n mudis-dev create secret docker-registry ghcr-pull \
+  --docker-server=ghcr.io \
+  --docker-username=edmondbrn \
+  --docker-password=<PAT-with-read:packages>
+
 kubectl apply -k manifest/overlays/k3d
 kubectl -n mudis-dev get pods -w
 ```
@@ -69,9 +82,12 @@ kubectl -n mudis-dev get pods -w
 Prerequisites:
 
 - the four private images must be pullable (see above);
-- Kubernetes secrets must exist — they are committed as **SealedSecrets**
-  (see `manifest/base/secrets/README.md`) and decrypted by the Sealed Secrets
-  controller running in the cluster.
+- the Sealed Secrets controller must be running — Kubernetes secrets are
+  committed as `SealedSecret` resources (see `manifest/base/secrets/README.md`)
+  and decrypted by the controller at apply time;
+- back up the controller's private key offline
+  (`kubectl -n kube-system get secret -l sealedsecrets.bitnami.com/sealed-secrets-key=active -o yaml`).
+  Losing it makes the committed `SealedSecret` resources undecryptable.
 
 ## GitOps (Argo CD)
 

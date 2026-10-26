@@ -70,8 +70,8 @@ SEED_ADMIN_EMAIL=admin@example.com
 SEED_ADMIN_USERNAME=Administrator
 
 # Docker image
-REGISTRY_IMAGE_BACKEND=ghcr.io/<github-user>/holograph-backend
-REGISTRY_IMAGE_FRONTEND=ghcr.io/<github-user>/holograph-frontend
+REGISTRY_IMAGE_BACKEND=ghcr.io/edmondbrn/mudis_fastapi_prod
+REGISTRY_IMAGE_FRONTEND=ghcr.io/edmondbrn/mudis_next_prod
 IMAGE_TAG=latest
 EOF
 

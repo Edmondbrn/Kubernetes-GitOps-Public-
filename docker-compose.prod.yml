@@ -247,7 +247,7 @@ services:
     build:
       context: ./postgres
       dockerfile: Dockerfile
-    image: ghcr.io/<github-user>/holograph-postgres:1.0.0
+    image: ghcr.io/edmondbrn/mudis_postgres_prod:1.0.0
     container_name: ${DB_NAME}
     networks:
       - internal
@@ -261,8 +261,8 @@ services:
     secrets:
       - db_password_admin
     volumes:
-      - ghcr.io/<github-user>/holograph-postgres-db:/var/lib/postgresql/data
-      - ghcr.io/<github-user>/holograph-postgres-backups:/backups
+      - holograph-postgres-db:/var/lib/postgresql/data
+      - holograph-postgres-backups:/backups
     mem_limit: 4g
     mem_reservation: 256m
     cpus: "1.0"
@@ -309,9 +309,9 @@ services:
     cpus: "0.1"
 
 volumes:
-  ghcr.io/<github-user>/holograph-postgres-db:
+  holograph-postgres-db:
   holograph-virtuoso-db:
-  ghcr.io/<github-user>/holograph-postgres-backups:
+  holograph-postgres-backups:
   celery-data:
   user-results:
   app-logs:

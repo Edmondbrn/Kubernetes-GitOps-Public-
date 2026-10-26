@@ -13,6 +13,8 @@ spec:
       labels:
         io.kompose.service: virtuoso
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001
