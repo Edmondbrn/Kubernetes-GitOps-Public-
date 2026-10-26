@@ -20,6 +20,8 @@ spec:
       labels:
         io.kompose.service: fastapi-backend
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000 # custom app user id see Dockerfile

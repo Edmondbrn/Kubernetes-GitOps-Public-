@@ -13,6 +13,8 @@ spec:
       labels:
         io.kompose.service: postgres
     spec:
+      imagePullSecrets:
+        - name: ghcr-pull
       securityContext:
         runAsNonRoot: true
         runAsUser: 70  # postgres id on Alpine
