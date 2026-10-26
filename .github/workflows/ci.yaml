@@ -159,23 +159,6 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-  frontend_build:
-    needs: frontend_test
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-frontend
-      - name: Build
-        working-directory: next_frontend
-        run: pnpm run build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: next-build
-          path: next_frontend/.next
-          include-hidden-files: true # .next is a hidden folder
-          retention-days: 1
-
   # ============================================================
   # Docker images: mudis_<service>_prod:<version> and :<short sha>
   # Pushed to GHCR only on main
