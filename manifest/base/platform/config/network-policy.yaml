@@ -148,6 +148,9 @@ spec:
                 values:
                   - postgres-backup
                   - db-migrate
+                  - celery-data-creation
+                  - clear-refresh-tokens
+                  - clear-user-results
       ports:
         - protocol: TCP
           port: 5432
@@ -168,6 +171,9 @@ spec:
         values:
           - postgres-backup
           - db-migrate
+          - celery-data-creation
+          - clear-refresh-tokens
+          - clear-user-results
   policyTypes:
     - Egress
   egress:
