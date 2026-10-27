@@ -7,5 +7,6 @@ resources:
   - jobs/db-migrate-job.yaml
   - jobs/clear-user-results-cronjob.yaml
   - jobs/clear-refresh-tokens-cronjob.yaml
+  - jobs/celery-data-creation-job.yaml
   - services/fastapi-backend-service.yaml
   - services/next-frontend-service.yaml

@@ -82,6 +82,124 @@ services:
     mem_reservation: 128m
     cpus: "0.5"
 
+
+  clear_refresh_tokens_cronjob:
+    image: ${REGISTRY_IMAGE_BACKEND}:${IMAGE_TAG:-latest}
+    command: python -m src.crons.runner clear-refresh-tokens
+    restart: "no"
+    user: "1000:1000"
+    networks:
+      - internal
+    env_file:
+      - .env.prod
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SERVICE_NAME=clear-refresh-tokens
+    secrets:
+      - source: db_user_password
+        target: DB_USER_PASSWORD
+      - source: db_password_admin
+        target: DB_PASSWORD_ADMIN
+      - source: db_password_anon
+        target: DB_PASSWORD_ANON
+      - source: db_password_cron
+        target: DB_PASSWORD_CRON
+      - source: dba_password
+        target: DBA_PASSWORD
+      - source: jwt_secret_key
+        target: JWT_SECRET_KEY
+      - source: seed_admin_password
+        target: SEED_ADMIN_PASSWORD
+      - source: db_app_admin_password
+        target: DB_APP_ADMIN_PASSWORD
+    volumes:
+      - app-logs:/var/log/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 512m
+    mem_reservation: 128m
+    cpus: "0.5"
+
+
+  clear_user_results_cronjob:
+    image: ${REGISTRY_IMAGE_BACKEND}:${IMAGE_TAG:-latest}
+    command: python -m src.crons.runner clear-user-results
+    restart: "no"
+    user: "1000:1000"
+    networks:
+      - internal
+    env_file:
+      - .env.prod
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SERVICE_NAME=clear-user-results
+    secrets:
+      - source: db_user_password
+        target: DB_USER_PASSWORD
+      - source: db_password_admin
+        target: DB_PASSWORD_ADMIN
+      - source: db_password_anon
+        target: DB_PASSWORD_ANON
+      - source: db_password_cron
+        target: DB_PASSWORD_CRON
+      - source: dba_password
+        target: DBA_PASSWORD
+      - source: jwt_secret_key
+        target: JWT_SECRET_KEY
+      - source: seed_admin_password
+        target: SEED_ADMIN_PASSWORD
+      - source: db_app_admin_password
+        target: DB_APP_ADMIN_PASSWORD
+    volumes:
+      - user-results:/user-results/write
+      - app-logs:/var/log/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 512m
+    mem_reservation: 128m
+    cpus: "0.5"
+
+  celery_data_creation_job:
+    image: ${REGISTRY_IMAGE_BACKEND}:${IMAGE_TAG:-latest}
+    command: python -m src.crons.runner clear-user-results
+    restart: "no"
+    user: "1000:1000"
+    networks:
+      - internal
+    env_file:
+      - .env.prod
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SERVICE_NAME=clear-user-results
+    secrets:
+      - source: db_user_password
+        target: DB_USER_PASSWORD
+      - source: db_password_admin
+        target: DB_PASSWORD_ADMIN
+      - source: db_password_anon
+        target: DB_PASSWORD_ANON
+      - source: db_password_cron
+        target: DB_PASSWORD_CRON
+      - source: dba_password
+        target: DBA_PASSWORD
+      - source: jwt_secret_key
+        target: JWT_SECRET_KEY
+      - source: seed_admin_password
+        target: SEED_ADMIN_PASSWORD
+      - source: db_app_admin_password
+        target: DB_APP_ADMIN_PASSWORD
+    volumes:
+      - celery-data:/celery/write
+      - app-logs:/var/log/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 512m
+    mem_reservation: 128m
+    cpus: "0.5"
+
   # ==========================================================
   # FastAPI backend - internal only, reached via next_frontend
   # ==========================================================
@@ -115,11 +233,16 @@ services:
       - source: db_app_admin_password
         target: DB_APP_ADMIN_PASSWORD
     volumes:
-      - celery-data:/celery/write
       - user-results:/user-results/write
       - app-logs:/var/log/app
     depends_on:
       db_migrate:
+        condition: service_completed_successfully
+      clear_refresh_tokens_cronjob:
+        condition: service_completed_successfully
+      clear_user_results_cronjob:
+        condition: service_completed_successfully
+      celery_data_creation_job:
         condition: service_completed_successfully
       virtuoso:
         condition: service_healthy
