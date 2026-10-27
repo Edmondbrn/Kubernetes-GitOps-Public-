@@ -20,6 +20,7 @@ spec:
       labels:
         io.kompose.service: redis
     spec:
+      serviceAccountName: mudis-sa
       securityContext:
         runAsNonRoot: true
         runAsUser: 999 # redis user id

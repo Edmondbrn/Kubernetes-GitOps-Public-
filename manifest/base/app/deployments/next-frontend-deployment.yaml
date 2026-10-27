@@ -20,6 +20,7 @@ spec:
       labels:
         io.kompose.service: next-frontend
     spec:
+      serviceAccountName: mudis-sa
       imagePullSecrets:
         - name: ghcr-pull
       securityContext:
@@ -45,7 +46,16 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "1000m"
-          # TODO init container waiting for backend replicas initialisation
+          startupProbe:
+            exec:
+              command:
+                - node
+                - -e
+                - 'require("http").get("http://localhost:3000/", r => process.exit(r.statusCode < 500 ? 0 : 1)).on("error", () => process.exit(1))'
+            failureThreshold: 3
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 5
           livenessProbe:
             exec:
               command:
@@ -53,7 +63,7 @@ spec:
                 - -e
                 - 'require("http").get("http://localhost:3000/", r => process.exit(r.statusCode < 500 ? 0 : 1)).on("error", () => process.exit(1))'
             failureThreshold: 3
-            initialDelaySeconds: 45
+            initialDelaySeconds: 90
             periodSeconds: 30
             timeoutSeconds: 5
           readinessProbe:
@@ -63,10 +73,9 @@ spec:
                 - -e
                 - 'require("http").get("http://localhost:3000/", r => process.exit(r.statusCode < 500 ? 0 : 1)).on("error", () => process.exit(1))'
             failureThreshold: 3
-            initialDelaySeconds: 45
+            initialDelaySeconds: 90
             periodSeconds: 30
             timeoutSeconds: 5
-          # Open port for Ingress controler
           ports:
             - containerPort: 3000
               protocol: TCP

@@ -14,6 +14,7 @@ spec:
       labels:
         app.kubernetes.io/name: nfs-server
     spec:
+      serviceAccountName: mudis-sa
       nodeSelector: # force the NFS pod on the server node
         kubernetes.io/hostname: k3d-mycluster-server-0
       containers:

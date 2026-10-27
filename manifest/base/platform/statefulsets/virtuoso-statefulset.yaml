@@ -13,6 +13,7 @@ spec:
       labels:
         io.kompose.service: virtuoso
     spec:
+      serviceAccountName: mudis-sa
       imagePullSecrets:
         - name: ghcr-pull
       securityContext:
@@ -55,18 +56,25 @@ spec:
             - |
               export DBA_PASSWORD="$(cat /run/secrets/dba_password)"; export DAV_PASSWORD="$(cat /run/secrets/dav_password)"; exec /virtuoso-entrypoint.sh "$@"
             - --
+          startupProbe:
+            exec:
+              command: ["wget", "-q", "-O", "/dev/null", "http://localhost:8890/sparql"]
+            failureThreshold: 10
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 10
           livenessProbe:
             exec:
               command: ["wget", "-q", "-O", "/dev/null", "http://localhost:8890/sparql"]
             failureThreshold: 10
-            initialDelaySeconds: 180
+            initialDelaySeconds: 60
             periodSeconds: 15
             timeoutSeconds: 10
           readinessProbe:
             exec:
               command: ["wget", "-q", "-O", "/dev/null", "http://localhost:8890/sparql"]
             failureThreshold: 10
-            initialDelaySeconds: 180
+            initialDelaySeconds: 60
             periodSeconds: 15
             timeoutSeconds: 10
           ports:

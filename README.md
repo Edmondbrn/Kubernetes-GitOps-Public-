@@ -171,7 +171,7 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath='{.data.password}' | base64 -d
 ```
 
-The Applications track the `feature/prepare_k8s_config` branch until the
+The Applications track the `main` branch until the
 Kubernetes/GitOps work is merged; switch `targetRevision` to `main` afterwards.
 The repository is public, so Argo CD clones it over HTTPS without repository
 credentials.
