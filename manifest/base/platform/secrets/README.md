@@ -15,10 +15,15 @@ Expected `SealedSecret` resources (namespace `mudis-dev`):
 | `db-password-admin`     | `db-password-admin`     | FastAPI, Postgres, backups  |
 | `db-password-anon`      | `db-password-anon`      | FastAPI                     |
 | `db-password-cron`      | `db-password-cron`      | FastAPI                     |
-| `db-user-password`      | `db-user-password`      | FastAPI, Celery             |
-| `db-app-admin-password` | `db-app-admin-password` | FastAPI                     |
-| `jwt-secret-key`        | `jwt-secret-key`        | FastAPI                     |
-| `seed-admin-password`   | `seed-admin-password`   | FastAPI                     |
+| `db-user-password`      | `db-user-password`      | FastAPI, Celery, db-migrate |
+| `db-app-admin-password` | `db-app-admin-password` | FastAPI, db-migrate         |
+| `jwt-secret-key`        | `jwt-secret-key`        | FastAPI, Celery, db-migrate |
+| `seed-admin-password`   | `seed-admin-password`   | FastAPI, db-migrate         |
+| `ghcr-pull`             | `.dockerconfigjson`     | all image pulls             |
+
+`ghcr-pull` is a `kubernetes.io/dockerconfigjson` SealedSecret. Seal it from the
+output of `kubectl create secret docker-registry ... --dry-run=client -o yaml`,
+never from a committed plaintext manifest.
 
 ## Generate a SealedSecret
 

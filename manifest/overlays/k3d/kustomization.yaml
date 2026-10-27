@@ -4,5 +4,5 @@ kind: Kustomization
 namespace: mudis-dev
 
 resources:
-  - ../../base
-  - namespace.yaml
+  - platform
+  - app

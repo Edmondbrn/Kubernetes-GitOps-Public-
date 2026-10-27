@@ -5,20 +5,20 @@ metadata:
     kompose.cmd: kompose --file docker-compose.yml convert
     kompose.version: 1.38.0 (a8f5d1cbd)
   labels:
-    io.kompose.service: celery-worker
-  name: celery-worker
+    io.kompose.service: fastapi-backend
+  name: fastapi-backend
 spec:
   replicas: 1
   selector:
     matchLabels:
-      io.kompose.service: celery-worker
+      io.kompose.service: fastapi-backend
   template:
     metadata:
       annotations:
         kompose.cmd: kompose --file docker-compose.yml convert
         kompose.version: 1.38.0 (a8f5d1cbd)
       labels:
-        io.kompose.service: celery-worker
+        io.kompose.service: fastapi-backend
     spec:
       imagePullSecrets:
         - name: ghcr-pull
@@ -29,101 +29,102 @@ spec:
         fsGroup: 1000 
         seccompProfile:
           type: "RuntimeDefault"
+      # wait for databases initialisation
       initContainers:
-        - name: wait-for-postgres
-          image: postgres:18-alpine
-          env:
+      - name: wait-for-postgres
+        image: postgres:18-alpine
+        env:
           - name: PGUSER # overwrite default pg user because uid 1000 does not have any account
             valueFrom:
               configMapKeyRef:
                 name: mudis-config
                 key: DB_ADMIN_USER
-          command:
-            - sh
-            - -c
-            - |
-              echo "Waiting for PostgreSQL..."
-              until pg_isready -h postgres -p 5432; do
-                sleep 2
-              done
-              echo "PostgreSQL is up"
-        - name: wait-for-redis
-          image: redis:8-alpine
-          command:
-            - sh
-            - -c
-            - |
-              echo "Waiting for Redis..."
-              until redis-cli -h redis -p 6379 ping | grep -q "PONG"; do
-                sleep 2
-              done
-              echo "Redis is up"
-        - name: wait-for-virtuoso
-          image: busybox:1.38
-          command:
-            - sh
-            - -c
-            - |
-              echo "Waiting for Virtuoso..."
-              until wget -qO /dev/null http://virtuoso:8890/sparql; do
-                sleep 2
-              done
-              echo "Virtuoso is up"
+        command:
+          - sh
+          - -c
+          - |
+            echo "Waiting for PostgreSQL..."
+            until pg_isready -h postgres -p 5432; do
+              sleep 2
+            done
+            echo "PostgreSQL is up"
+      - name: wait-for-redis
+        image: redis:8-alpine
+        command:
+          - sh
+          - -c
+          - |
+            echo "Waiting for Redis..."
+            until redis-cli -h redis -p 6379 ping | grep -q "PONG"; do
+              sleep 2
+            done
+            echo "Redis is up"
+      - name: wait-for-virtuoso
+        image: busybox:1.38
+        command:
+          - sh
+          - -c
+          - |
+            echo "Waiting for Virtuoso..."
+            until wget -qO /dev/null http://virtuoso:8890/sparql; do
+              sleep 2
+            done
+            echo "Virtuoso is up"
+
       containers:
         - image: ghcr.io/edmondbrn/mudis_fastapi_prod:1.0.0
-          name: celery-worker
+          imagePullPolicy: Always # 1.0.0 is re-pushed in place
+          name: fastapi-server
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
               drop:
                 - ALL
-          # less than fastapi because Celery just send the query to Virtuoso
           resources:
             requests: # for scheduling step
-              memory: "256Mi"
-              cpu: "750m"
+              memory: "512Mi"
+              cpu: "1000m"
             limits: # for runtime step
-              memory: "768Mi"
-              cpu: "750m"
-          livenessProbe:
+              memory: "1024Mi"
+              cpu: "1000m"
+          # open port for ClusterIP
+          ports:
+            - containerPort: 8000
+              protocol: TCP 
+          # block ready and live prob until startup probe has ended
+          startupProbe:
             exec:
               command:
-                - /bin/sh
+                - python3
                 - -c
-                - |
-                  echo "Test Celery liveness..."
-                  celery -A src.celery_app inspect ping -d celery@$HOSTNAME | grep -q OK || exit 1
-            failureThreshold: 3
-            initialDelaySeconds: 20
+                - import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/health', timeout=3).status==200 else sys.exit(1)
+            failureThreshold: 5
+            initialDelaySeconds: 90
             periodSeconds: 30
-            timeoutSeconds: 10
-          readinessProbe:
+            timeoutSeconds: 5
+          livenessProbe: # provoke pod restart if failed
             exec:
               command:
-                - /bin/sh
+                - python3
                 - -c
-                - |
-                  echo "Test Celery readiness..."
-                  celery -A src.celery_app inspect ping -d celery@$HOSTNAME | grep -q OK || exit 1
-            failureThreshold: 3
-            initialDelaySeconds: 20
+                - import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/health', timeout=3).status==200 else sys.exit(1)
+            failureThreshold: 5
+            initialDelaySeconds: 90
             periodSeconds: 30
-            timeoutSeconds: 10
-          args:
-            - celery
-            - -A
-            - src.celery_app
-            - worker
-            - -Q
-            - long_tasks
-            - --concurrency=3
-            - --prefetch-multiplier=1
-            - --loglevel=info
+            timeoutSeconds: 5
+          readinessProbe: # no restart if failed but stuck in pending state
+            exec:
+              command:
+                - python3
+                - -c
+                - import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/health', timeout=3).status==200 else sys.exit(1)
+            failureThreshold: 5
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 5
           env:
             - name: PYTHONUNBUFFERED
               value: "1"
-            - name: "SERVICE_NAME" # overwrite service_name from env
-              value: "celery"
           envFrom:
             - configMapRef:
                 name: mudis-config
@@ -152,27 +153,28 @@ spec:
             - mountPath: /run/secrets/DB_APP_ADMIN_PASSWORD
               name: db-app-admin-password
               subPath: db-app-admin-password
-            # shared volumes between celery and fastapi server
-            - mountPath: /celery/read
+            # file sharing
+            - mountPath: /celery/write
               name: celery-data
-              readOnly: true
-            - mountPath: /user-results/write
+            - mountPath: /user-results/read
               name: user-results
+              readOnly: true
             - mountPath: /var/log/app
               name: app-logs
       volumes:
-        # shared volumes between celery and fastapi server
+        # PVC
         - name: celery-data
           persistentVolumeClaim:
             claimName: celery-data
-            readOnly: true
         - name: user-results
           persistentVolumeClaim:
             claimName: user-results
+            readOnly: true
         - name: app-logs
           persistentVolumeClaim:
             claimName: app-logs
-        # secrets mounting
+            
+        # Secret mounting
         - name: db-user-password
           secret:
             items:

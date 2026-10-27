@@ -20,11 +20,12 @@ The application source tree is kept as empty placeholders (`fastapi_backend/`,
 ## Repository layout
 
 ```
+argocd/            AppProject, root Application and child Applications
 manifest/
-  base/            Kustomize base: ConfigMap, NetworkPolicies, storage,
-                   Postgres / Virtuoso StatefulSets, FastAPI / Celery / Next
-                   Deployments, Postgres backup CronJob
-  overlays/k3d/    k3d overlay: namespace, image references, SealedSecrets
+  base/platform/   Namespace-agnostic platform layer: config, secrets,
+                   NetworkPolicies, storage, Postgres / Virtuoso / Redis / NFS
+  base/app/        Application layer: FastAPI, Celery, Next.js, PreSync Job
+  overlays/k3d/    k3d overlay: namespace + platform/app entry points
 postgres/          Postgres image build context (backup scripts, crontab)
 virtuoso/          Virtuoso image build context
 fastapi_backend/   Dockerfile only (source is private)
@@ -44,7 +45,9 @@ Images are published as **private** GitHub Container Registry packages:
 | `ghcr.io/edmondbrn/mudis_postgres_prod`  | PostgreSQL 18     |
 | `ghcr.io/edmondbrn/mudis_virt_prod`      | OpenLink Virtuoso |
 
-All images are tagged `1.0.0` in `manifest/overlays/k3d/kustomization.yaml`.
+All images are tagged `1.0.0` in the Kustomize base. Because the tag is mutable
+during this validation phase, the application containers use
+`imagePullPolicy: Always` so a re-pushed `1.0.0` is actually pulled.
 
 Request access from the repository owner, then create the pull secret locally
 (it is intentionally **not** committed):
@@ -83,7 +86,7 @@ Prerequisites:
 
 - the four private images must be pullable (see above);
 - the Sealed Secrets controller must be running — Kubernetes secrets are
-  committed as `SealedSecret` resources (see `manifest/base/secrets/README.md`)
+  committed as `SealedSecret` resources (see `manifest/base/platform/secrets/README.md`)
   and decrypted by the controller at apply time;
 - back up the controller's private key offline
   (`kubectl -n kube-system get secret -l sealedsecrets.bitnami.com/sealed-secrets-key=active -o yaml`).
@@ -114,9 +117,7 @@ If a whole namespace deletion hangs, run the cleanup helper:
 ```
 
 It force-deletes the pods (which unblocks the namespace controller) and removes
-the dangling finalizers from the released `nfs-csi` PVs. In the app-of-apps
-layout the NFS server will live in the `platform` namespace, so deleting the
-application namespace no longer takes the storage server down with it.
+the dangling finalizers from the released `nfs-csi` PVs.
 
 The `nfs-csi` StorageClass uses `soft` mounts in this dev setup so a missing
 NFS server cannot block pod termination forever. Use `hard` mounts for
@@ -124,12 +125,56 @@ production storage.
 
 ## GitOps (Argo CD)
 
-Argo CD watches this repository and syncs the `platform` and `mudis`
-Applications. Database migrations run as a `PreSync` Job, so the schema is
-updated exactly once before the API Deployment rolls out — the API can then be
-scaled to N replicas without concurrent migrations.
+Argo CD v3.5.6 watches this repository and uses an **app-of-apps** layout:
 
-> Argo CD manifests are being added in a follow-up commit.
+```
+argocd/root-app.yaml            root Application -> argocd/apps/
+argocd/projects/mudis.yaml      AppProject (repo + destination allow-list)
+argocd/apps/platform.yaml       Application, sync-wave -1
+argocd/apps/mudis.yaml          Application, sync-wave 0
+```
+
+The `platform` Application owns the namespace, storage, config, SealedSecrets,
+Postgres, Redis, Virtuoso and the NFS server. The `mudis` Application owns the
+FastAPI, Celery and Next.js workloads. Both currently target the `mudis-dev`
+namespace.
+
+Database migrations run as an Argo CD **`PreSync` Job**
+(`manifest/base/app/jobs/db-migrate-job.yaml`). The FastAPI image no longer runs
+`alembic upgrade head` at startup, so the schema is migrated exactly once before
+the API Deployment rolls out and the API can be scaled to N replicas without
+concurrent migrations.
+
+### Install and bootstrap
+
+```bash
+# Argo CD v3.5.6 (server-side apply is required: the ApplicationSet CRD
+# exceeds the client-side annotation limit)
+kubectl create namespace argocd
+kubectl apply --server-side --force-conflicts -n argocd \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.5.6/manifests/install.yaml
+
+# AppProject + root app
+kubectl apply -f argocd/projects/mudis.yaml
+kubectl apply -f argocd/root-app.yaml
+```
+
+The root Application creates the two child Applications. Their sync policy is
+initially `automated` with `prune` and `selfHeal` disabled, so a bad sync cannot
+delete cluster state while the deployment is being validated.
+
+```bash
+kubectl -n argocd get applications
+kubectl -n argocd port-forward svc/argocd-server 8080:443
+# UI: https://localhost:8080  (user: admin)
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath='{.data.password}' | base64 -d
+```
+
+The Applications track the `feature/prepare_k8s_config` branch until the
+Kubernetes/GitOps work is merged; switch `targetRevision` to `main` afterwards.
+The repository is public, so Argo CD clones it over HTTPS without repository
+credentials.
 
 ## Docker Compose (reference)
 

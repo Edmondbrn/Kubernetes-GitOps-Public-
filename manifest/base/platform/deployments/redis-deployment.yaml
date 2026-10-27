@@ -38,7 +38,6 @@ spec:
           ports:
             - containerPort: 6379
               protocol: TCP
-          # TODO security context ?
           resources:
             requests:
               memory: "64Mi"
