@@ -82,9 +82,6 @@ spec:
                 values:
                   - fastapi-backend
                   - celery-worker
-        - podSelector:
-            matchLabels:
-              io.kompose.service: postgres-backup
       ports:
         - protocol: TCP
           port: 6379  # Redis
@@ -131,15 +128,46 @@ spec:
 
 ---
 
-# Allow the backup CronJob to reach postgres (egress is denied by default)
+# Allow the database jobs (postgres-backup CronJob and db-migrate PreSync Job) to reach postgres
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-postgres-backup-egress
+  name: allow-db-jobs-to-postgres
 spec:
   podSelector:
     matchLabels:
-      io.kompose.service: postgres-backup
+      io.kompose.service: postgres
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: io.kompose.service
+                operator: In
+                values:
+                  - postgres-backup
+                  - db-migrate
+      ports:
+        - protocol: TCP
+          port: 5432
+
+---
+
+# Allow the database jobs (postgres-backup CronJob and db-migrate PreSync Job)
+# to reach postgres (egress is denied by default)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-db-jobs-egress
+spec:
+  podSelector:
+    matchExpressions:
+      - key: io.kompose.service
+        operator: In
+        values:
+          - postgres-backup
+          - db-migrate
   policyTypes:
     - Egress
   egress:
