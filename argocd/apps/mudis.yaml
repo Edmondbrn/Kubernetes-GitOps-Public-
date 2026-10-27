@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mudis
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0" # sync after platform
+spec:
+  project: mudis
+  source:
+    repoURL: https://github.com/Edmondbrn/Kubernetes-GitOps-Public-.git
+    targetRevision: feature/prepare_k8s_config
+    path: manifest/overlays/k3d/app
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mudis-dev
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
