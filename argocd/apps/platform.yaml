@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1" # sync before
+spec:
+  project: mudis
+  source:
+    repoURL: https://github.com/Edmondbrn/Kubernetes-GitOps-Public-.git
+    targetRevision: feature/prepare_k8s_config
+    path: manifest/overlays/k3d/platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mudis-dev
+  syncPolicy:
+    automated:
+      prune: false # control if deleted ressources from git are deleted from the cluster
+      selfHeal: false # control if manual modifications are rejected or not
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
