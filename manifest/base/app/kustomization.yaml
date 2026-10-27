@@ -5,5 +5,7 @@ resources:
   - deployments/fastapi-backend-deployment.yaml
   - deployments/next-frontend-deployment.yaml
   - jobs/db-migrate-job.yaml
+  - jobs/clear-user-results-cronjob.yaml
+  - jobs/clear-refresh-tokens-cronjob.yaml
   - services/fastapi-backend-service.yaml
   - services/next-frontend-service.yaml

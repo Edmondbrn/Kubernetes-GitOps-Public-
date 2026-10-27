@@ -155,8 +155,6 @@ spec:
               name: db-app-admin-password
               subPath: db-app-admin-password
             # file sharing
-            - mountPath: /celery/write
-              name: celery-data
             - mountPath: /user-results/read
               name: user-results
               readOnly: true
@@ -164,9 +162,6 @@ spec:
               name: app-logs
       volumes:
         # PVC
-        - name: celery-data
-          persistentVolumeClaim:
-            claimName: celery-data
         - name: user-results
           persistentVolumeClaim:
             claimName: user-results

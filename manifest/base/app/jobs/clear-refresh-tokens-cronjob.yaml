@@ -1,0 +1,159 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: clear-refresh-tokens
+  labels:
+    app.kubernetes.io/name: clear-refresh-tokens
+    io.kompose.service: clear-refresh-tokens
+spec:
+  # everyday at 04:00 UTC: remove stale refresh tokens (DB only)
+  schedule: "0 4 * * *"
+  timeZone: "Etc/UTC"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: clear-refresh-tokens
+            io.kompose.service: clear-refresh-tokens
+        spec:
+          restartPolicy: Never
+          imagePullSecrets:
+            - name: ghcr-pull
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000 # custom app user id see Dockerfile
+            runAsGroup: 1000
+            fsGroup: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          initContainers:
+            - name: wait-for-postgres
+              image: postgres:18-alpine
+              env:
+                - name: PGUSER # uid 1000 has no passwd entry in the postgres image
+                  valueFrom:
+                    configMapKeyRef:
+                      name: mudis-config
+                      key: DB_ADMIN_USER
+              command:
+                - sh
+                - -c
+                - |
+                  echo "Waiting for PostgreSQL..."
+                  until pg_isready -h postgres -p 5432; do
+                    sleep 2
+                  done
+                  echo "PostgreSQL is up"
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+          containers:
+            - name: clear-refresh-tokens
+              image: ghcr.io/edmondbrn/mudis_fastapi_prod:1.0.0
+              imagePullPolicy: Always # portfolio image is always 1.0.0
+              command:
+                - python
+                - -m
+                - src.crons.runner
+                - clear-refresh-tokens
+              env:
+                - name: PYTHONUNBUFFERED
+                  value: "1"
+                - name: SERVICE_NAME # overwrite service_name so logs go to their own file
+                  value: cron-clear-refresh-tokens
+              envFrom:
+                - configMapRef:
+                    name: mudis-config
+              volumeMounts:
+                - mountPath: /run/secrets/DB_USER_PASSWORD
+                  name: db-user-password
+                  subPath: db-user-password
+                - mountPath: /run/secrets/DB_PASSWORD_ADMIN
+                  name: db-password-admin
+                  subPath: db-password-admin
+                - mountPath: /run/secrets/DB_PASSWORD_ANON
+                  name: db-password-anon
+                  subPath: db-password-anon
+                - mountPath: /run/secrets/DB_PASSWORD_CRON
+                  name: db-password-cron
+                  subPath: db-password-cron
+                - mountPath: /run/secrets/DBA_PASSWORD
+                  name: dba-password
+                  subPath: dba-password
+                - mountPath: /run/secrets/JWT_SECRET_KEY
+                  name: jwt-secret-key
+                  subPath: jwt-secret-key
+                - mountPath: /run/secrets/SEED_ADMIN_PASSWORD
+                  name: seed-admin-password
+                  subPath: seed-admin-password
+                - mountPath: /run/secrets/DB_APP_ADMIN_PASSWORD
+                  name: db-app-admin-password
+                  subPath: db-app-admin-password
+                - mountPath: /var/log/app
+                  name: app-logs
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+          volumes:
+            - name: app-logs
+              persistentVolumeClaim:
+                claimName: app-logs
+            - name: db-user-password
+              secret:
+                secretName: db-user-password
+                items:
+                  - key: db-user-password
+                    path: db-user-password
+            - name: db-password-admin
+              secret:
+                secretName: db-password-admin
+                items:
+                  - key: db-password-admin
+                    path: db-password-admin
+            - name: db-password-anon
+              secret:
+                secretName: db-password-anon
+                items:
+                  - key: db-password-anon
+                    path: db-password-anon
+            - name: db-password-cron
+              secret:
+                secretName: db-password-cron
+                items:
+                  - key: db-password-cron
+                    path: db-password-cron
+            - name: dba-password
+              secret:
+                secretName: dba-password
+                items:
+                  - key: dba-password
+                    path: dba-password
+            - name: jwt-secret-key
+              secret:
+                secretName: jwt-secret-key
+                items:
+                  - key: jwt-secret-key
+                    path: jwt-secret-key
+            - name: seed-admin-password
+              secret:
+                secretName: seed-admin-password
+                items:
+                  - key: seed-admin-password
+                    path: seed-admin-password
+            - name: db-app-admin-password
+              secret:
+                secretName: db-app-admin-password
+                items:
+                  - key: db-app-admin-password
+                    path: db-app-admin-password
