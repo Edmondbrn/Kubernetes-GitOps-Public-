@@ -7,6 +7,7 @@ metadata:
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
   labels:
     app.kubernetes.io/name: db-migrate
+    io.kompose.service: db-migrate
 spec:
   backoffLimit: 1
   activeDeadlineSeconds: 600
@@ -14,6 +15,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: db-migrate
+        io.kompose.service: db-migrate
     spec:
       restartPolicy: Never
       imagePullSecrets:
