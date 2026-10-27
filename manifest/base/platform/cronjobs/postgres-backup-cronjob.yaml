@@ -46,7 +46,7 @@ spec:
 
           containers:
             - name: backup
-              image: mudis_postgres_prod:1.0.0
+              image: ghcr.io/edmondbrn/mudis_postgres_prod:1.0.0
               command: ["/bin/sh", "-c"]
               args:
                 - |

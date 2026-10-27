@@ -19,7 +19,7 @@ rdf-data/
 design-logs/
 todo.md
 dev-setup/virtuoso/
-# plaintext secrets only (SealedSecrets live in manifest/base/secrets)
+# plaintext secrets only (SealedSecrets live in manifest/base/platform/secrets)
 /secrets/
 manifest/secrets/
 manifest/overlays/k3d/secrets/

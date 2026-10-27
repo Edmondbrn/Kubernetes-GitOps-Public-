@@ -44,6 +44,45 @@ x-restart-policy: &restart-policy
 services:
 
   # ==========================================================
+  # Alembic migrations - runs once before the API/worker start
+  # ==========================================================
+  db_migrate:
+    image: ${REGISTRY_IMAGE_BACKEND}:${IMAGE_TAG:-latest}
+    command: alembic upgrade head
+    restart: "no"
+    user: "1000:1000"
+    networks:
+      - internal
+    env_file:
+      - .env.prod
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SERVICE_NAME=db-migrate
+    secrets:
+      - source: db_user_password
+        target: DB_USER_PASSWORD
+      - source: db_password_admin
+        target: DB_PASSWORD_ADMIN
+      - source: db_password_anon
+        target: DB_PASSWORD_ANON
+      - source: db_password_cron
+        target: DB_PASSWORD_CRON
+      - source: dba_password
+        target: DBA_PASSWORD
+      - source: jwt_secret_key
+        target: JWT_SECRET_KEY
+      - source: seed_admin_password
+        target: SEED_ADMIN_PASSWORD
+      - source: db_app_admin_password
+        target: DB_APP_ADMIN_PASSWORD
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 512m
+    mem_reservation: 128m
+    cpus: "0.5"
+
+  # ==========================================================
   # FastAPI backend - internal only, reached via next_frontend
   # ==========================================================
   fastapi_backend:
@@ -80,6 +119,8 @@ services:
       - user-results:/user-results/write
       - app-logs:/var/log/app
     depends_on:
+      db_migrate:
+        condition: service_completed_successfully
       virtuoso:
         condition: service_healthy
       postgres:
@@ -132,6 +173,8 @@ services:
       - user-results:/user-results/write
       - app-logs:/var/log/app
     depends_on:
+      db_migrate:
+        condition: service_completed_successfully
       virtuoso:
         condition: service_healthy
       postgres:
