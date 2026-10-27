@@ -9,7 +9,7 @@ spec:
   project: mudis
   source:
     repoURL: https://github.com/Edmondbrn/Kubernetes-GitOps-Public-.git
-    targetRevision: feature/prepare_k8s_config
+    targetRevision: main
     path: manifest/overlays/k3d/app
   destination:
     server: https://kubernetes.default.svc
