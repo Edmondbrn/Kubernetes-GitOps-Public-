@@ -16,8 +16,8 @@ spec:
     namespace: mudis-dev
   syncPolicy:
     automated:
-      prune: false # control if deleted ressources from git are deleted from the cluster
-      selfHeal: false # control if manual modifications are rejected or not
+      prune: true # control if deleted ressources from git are deleted from the cluster
+      selfHeal: true # control if manual modifications are rejected or not
     syncOptions:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
