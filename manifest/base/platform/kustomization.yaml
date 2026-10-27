@@ -4,6 +4,7 @@ resources:
   - config/mudis-config.yaml
   - config/virtuoso-cm2-configmap.yaml
   - config/network-policy.yaml
+  - config/serviceaccount.yaml
   - cronjobs/postgres-backup-cronjob.yaml
   - deployments/nfs-server-deployment.yaml
   - deployments/redis-deployment.yaml
