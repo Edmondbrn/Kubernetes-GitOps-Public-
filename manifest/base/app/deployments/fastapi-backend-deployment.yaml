@@ -73,7 +73,7 @@ spec:
             echo "Virtuoso is up"
 
       containers:
-        - image: ghcr.io/edmondbrn/mudis_fastapi_prod:1.0.0
+        - image: ghcr.io/edmondbrn/holograph-web/mudis_fastapi_prod:1.0.0
           imagePullPolicy: Always # 1.0.0 is re-pushed in place
           name: fastapi-server
           securityContext:

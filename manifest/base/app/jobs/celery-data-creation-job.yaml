@@ -54,7 +54,7 @@ spec:
                 - ALL
       containers:
         - name: celery-data-creation
-          image: ghcr.io/edmondbrn/mudis_fastapi_prod:1.0.0
+          image: ghcr.io/edmondbrn/holograph-web/mudis_fastapi_prod:1.0.0
           imagePullPolicy: Always # portfolio image is always 1.0.0
           command:
             - python

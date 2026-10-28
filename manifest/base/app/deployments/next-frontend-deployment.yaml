@@ -31,7 +31,7 @@ spec:
         seccompProfile:
           type: "RuntimeDefault"
       containers:
-        - image: ghcr.io/edmondbrn/mudis_next_prod:1.0.0
+        - image: ghcr.io/edmondbrn/holograph-web/mudis_next_prod:1.0.0
           imagePullPolicy: Always # 1.0.0 is re-pushed in place
           name: nextjs-server
           securityContext:

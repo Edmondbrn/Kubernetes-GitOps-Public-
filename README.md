@@ -40,10 +40,10 @@ Images are published as **private** GitHub Container Registry packages:
 
 | Image                                    | Component         |
 | ---------------------------------------- | ----------------- |
-| `ghcr.io/edmondbrn/mudis_fastapi_prod`   | FastAPI + Celery  |
-| `ghcr.io/edmondbrn/mudis_next_prod`      | Next.js           |
-| `ghcr.io/edmondbrn/mudis_postgres_prod`  | PostgreSQL 18     |
-| `ghcr.io/edmondbrn/mudis_virt_prod`      | OpenLink Virtuoso |
+| `ghcr.io/edmondbrn/holograph-web/mudis_fastapi_prod`   | FastAPI + Celery  |
+| `ghcr.io/edmondbrn/holograph-web/mudis_next_prod`      | Next.js           |
+| `ghcr.io/edmondbrn/holograph-web/mudis_postgres_prod`  | PostgreSQL 18     |
+| `ghcr.io/edmondbrn/holograph-web/mudis_virt_prod`      | OpenLink Virtuoso |
 
 All images are tagged `1.0.0` in the Kustomize base. Because the tag is mutable
 during this validation phase, the application containers use

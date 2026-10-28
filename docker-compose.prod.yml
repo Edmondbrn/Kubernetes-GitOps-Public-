@@ -413,7 +413,7 @@ services:
     build:
       context: ./postgres
       dockerfile: Dockerfile
-    image: ghcr.io/edmondbrn/mudis_postgres_prod:1.0.0
+    image: ghcr.io/edmondbrn/holograph-web/mudis_postgres_prod:1.0.0
     container_name: ${DB_NAME}
     networks:
       - internal
