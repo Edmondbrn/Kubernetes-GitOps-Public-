@@ -39,6 +39,11 @@ spec:
               # Alertmanager is disabled: hide the dangling datasource
               alertmanager:
                 enabled: false
+          # Grafana provisioning never removes a datasource dropped from its
+          # config file, so delete the one created by earlier revisions.
+          deleteDatasources:
+            - name: Alertmanager
+              orgId: 1
           ingress:
             enabled: true
             ingressClassName: traefik
