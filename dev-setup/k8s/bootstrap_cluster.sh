@@ -173,8 +173,29 @@ install_sealed_secrets() {
   log "Sealed Secrets ${SEALED_SECRETS_VERSION}"
 
   if [[ -f "$SEALED_KEY_BACKUP" ]]; then
-    log "Restoring the Sealed Secrets private key from ${SEALED_KEY_BACKUP}"
-    kubectl apply -f "$SEALED_KEY_BACKUP"
+    local key_ref key_ns key_name backup_crt existing_crt
+
+    key_ref="$(kubectl get -f "$SEALED_KEY_BACKUP" \
+      -o jsonpath='{.metadata.namespace}/{.metadata.name}' 2>/dev/null || true)"
+    [[ -n "$key_ref" ]] || die "Cannot read the Sealed Secrets key manifest: ${SEALED_KEY_BACKUP}"
+    key_ns="${key_ref%%/*}"
+    key_name="${key_ref#*/}"
+    backup_crt="$(kubectl get -f "$SEALED_KEY_BACKUP" \
+      -o jsonpath='{.data.tls\.crt}' 2>/dev/null || true)"
+
+    existing_crt="$(kubectl -n "$key_ns" get secret "$key_name" \
+      -o jsonpath='{.data.tls\.crt}' 2>/dev/null || true)"
+
+    if [[ -n "$existing_crt" && "$existing_crt" == "$backup_crt" ]]; then
+      log "Sealed Secrets key '${key_name}' is already restored"
+    else
+      if [[ -n "$existing_crt" ]]; then
+        warn "Secret '${key_name}' exists with a different key: replacing it with the backup"
+        kubectl -n "$key_ns" delete secret "$key_name"
+      fi
+      log "Restoring the Sealed Secrets private key from ${SEALED_KEY_BACKUP}"
+      kubectl apply -f "$SEALED_KEY_BACKUP"
+    fi
   elif (( ALLOW_NEW_SEALED_KEY )); then
     warn "No key backup at ${SEALED_KEY_BACKUP}: a new key will be generated."
     warn "The SealedSecrets committed in this repository will NOT decrypt."

@@ -1,9 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  annotations:
-    kompose.cmd: kompose --file docker-compose.yml convert
-    kompose.version: 1.38.0 (a8f5d1cbd)
   labels:
     io.kompose.service: next-frontend
   name: next-frontend
@@ -14,9 +11,6 @@ spec:
       io.kompose.service: next-frontend
   template:
     metadata: 
-      annotations:
-        kompose.cmd: kompose --file docker-compose.yml convert
-        kompose.version: 1.38.0 (a8f5d1cbd)
       labels:
         io.kompose.service: next-frontend
     spec:

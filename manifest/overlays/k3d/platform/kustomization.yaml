@@ -6,6 +6,11 @@ namespace: mudis-dev
 resources:
   - ../../../base/platform
   - namespace.yaml
+  # k3d-specific: NFS server, its StorageClass and the hostPath-backed export
+  - nfs-storage.yaml
+  - nfs-server-service.yaml
+  - nfs-server-deployment.yaml
+  - network-policy-nfs.yaml
 
 patches:
   - target:

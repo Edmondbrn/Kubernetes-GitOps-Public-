@@ -66,6 +66,13 @@ spec:
                 - -m
                 - src.crons.runner
                 - clear-refresh-tokens
+              resources:
+                requests:
+                  memory: "128Mi"
+                  cpu: "100m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "500m"
               env:
                 - name: PYTHONUNBUFFERED
                   value: "1"

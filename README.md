@@ -23,9 +23,10 @@ The application source tree is kept as empty placeholders (`fastapi_backend/`,
 argocd/            AppProject, root Application and child Applications
 manifest/
   base/platform/   Namespace-agnostic platform layer: config, secrets,
-                   NetworkPolicies, storage, Postgres / Virtuoso / Redis / NFS
-  base/app/        Application layer: FastAPI, Celery, Next.js, PreSync Job
-  overlays/k3d/    k3d overlay: namespace + platform/app entry points
+                   NetworkPolicies, storage, Postgres / Virtuoso / Redis
+  base/app/        Application layer: FastAPI, Celery, Next.js, Jobs and CronJobs
+  overlays/k3d/    k3d overlay: namespace, NFS server/StorageClass, platform/app
+                   entry points
 postgres/          Postgres image build context (backup scripts, crontab)
 virtuoso/          Virtuoso image build context
 fastapi_backend/   Dockerfile only (source is private)
@@ -65,32 +66,38 @@ so create it in the `mudis-dev` namespace before the pods start.
 
 ## Deploy on k3d
 
+The bootstrap script creates (or reuses) the `holograph-cluster` k3d cluster,
+installs the NFS CSI driver, restores the Sealed Secrets key, installs Argo CD,
+creates the `mudis-dev` namespace and applies the app-of-apps:
+
 ```bash
-k3d cluster create mycluster --agents 2 --servers 1
+./dev-setup/k8s/bootstrap_cluster.sh
+```
 
-# Sealed Secrets controller (the private key stays in the cluster)
-kubectl apply -f https://github.com/bitnami/sealed-secrets/releases/download/v0.41.2/controller.yaml
+It is idempotent and accepts:
 
-# Namespace + GHCR pull secret (never committed)
-kubectl create namespace mudis-dev
-kubectl -n mudis-dev create secret docker-registry ghcr-pull \
-  --docker-server=ghcr.io \
-  --docker-username=edmondbrn \
-  --docker-password=<PAT-with-read:packages>
-
-kubectl apply -k manifest/overlays/k3d
-kubectl -n mudis-dev get pods -w
+```bash
+./dev-setup/k8s/bootstrap_cluster.sh --no-wait
+./dev-setup/k8s/bootstrap_cluster.sh --allow-new-sealed-key
+./dev-setup/k8s/bootstrap_cluster.sh --help
 ```
 
 Prerequisites:
 
+- `k3d`, `kubectl`, `curl`, `git` and Docker must be installed;
 - the four private images must be pullable (see above);
-- the Sealed Secrets controller must be running — Kubernetes secrets are
-  committed as `SealedSecret` resources (see `manifest/base/platform/secrets/README.md`)
-  and decrypted by the controller at apply time;
-- back up the controller's private key offline
-  (`kubectl -n kube-system get secret -l sealedsecrets.bitnami.com/sealed-secrets-key=active -o yaml`).
-  Losing it makes the committed `SealedSecret` resources undecryptable.
+- the Sealed Secrets private key must exist offline at
+  `${SEALED_KEY_BACKUP:-$HOME/.config/holograph/sealed-secrets-master-key.yaml}`.
+  The committed `SealedSecret` resources cannot be decrypted without it;
+- the NFS export uses `$HOME/.local/share/holograph/nfs-data` (override with
+  `NFS_DATA_DIR`). It must survive cluster recreation.
+
+To deploy without Argo CD, apply the overlay directly:
+
+```bash
+kubectl apply -k manifest/overlays/k3d
+kubectl -n mudis-dev get pods -w
+```
 
 ### k3d / NFS troubleshooting
 
@@ -148,20 +155,17 @@ concurrent migrations.
 ### Install and bootstrap
 
 ```bash
-# Argo CD v3.5.6 (server-side apply is required: the ApplicationSet CRD
-# exceeds the client-side annotation limit)
-kubectl create namespace argocd
-kubectl apply --server-side --force-conflicts -n argocd \
-  -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.5.6/manifests/install.yaml
-
-# AppProject + root app
-kubectl apply -f argocd/projects/mudis.yaml
-kubectl apply -f argocd/root-app.yaml
+./dev-setup/k8s/bootstrap_cluster.sh
 ```
 
+The script installs Argo CD with server-side apply (required because the
+ApplicationSet CRD exceeds the client-side annotation limit), restores the
+Sealed Secrets key, creates the namespace and applies the AppProject and root
+Application.
+
 The root Application creates the two child Applications. Their sync policy is
-initially `automated` with `prune` and `selfHeal` disabled, so a bad sync cannot
-delete cluster state while the deployment is being validated.
+`automated` with `prune` and `selfHeal` enabled, so the cluster converges back
+to Git after manual changes and resources removed from Git are pruned.
 
 ```bash
 kubectl -n argocd get applications
@@ -171,10 +175,8 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
   -o jsonpath='{.data.password}' | base64 -d
 ```
 
-The Applications track the `main` branch until the
-Kubernetes/GitOps work is merged; switch `targetRevision` to `main` afterwards.
-The repository is public, so Argo CD clones it over HTTPS without repository
-credentials.
+The Applications track the `main` branch. The repository is public, so Argo CD
+clones it over HTTPS without repository credentials.
 
 ## Docker Compose (reference)
 

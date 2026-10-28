@@ -60,6 +60,13 @@ spec:
             - python
             - -m
             - src.core.celery_cache_runner
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
           env:
             - name: PYTHONUNBUFFERED
               value: "1"

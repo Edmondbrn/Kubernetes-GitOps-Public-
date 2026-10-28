@@ -1,9 +1,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  annotations:
-    kompose.cmd: kompose --file docker-compose.yml convert
-    kompose.version: 1.38.0 (a8f5d1cbd)
   labels:
     io.kompose.service: celery-worker
   name: celery-worker
@@ -14,9 +11,6 @@ spec:
       io.kompose.service: celery-worker
   template:
     metadata:
-      annotations:
-        kompose.cmd: kompose --file docker-compose.yml convert
-        kompose.version: 1.38.0 (a8f5d1cbd)
       labels:
         io.kompose.service: celery-worker
     spec:
@@ -87,6 +81,17 @@ spec:
             limits: # for runtime step
               memory: "768Mi"
               cpu: "750m"
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  echo "Test Celery startup..."
+                  celery -A src.celery_app inspect ping -d celery@$HOSTNAME | grep -q OK || exit 1
+            failureThreshold: 30
+            periodSeconds: 5
+            timeoutSeconds: 10
           livenessProbe:
             exec:
               command:

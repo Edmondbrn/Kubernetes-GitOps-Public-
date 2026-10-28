@@ -6,10 +6,8 @@ resources:
   - config/network-policy.yaml
   - config/serviceaccount.yaml
   - cronjobs/postgres-backup-cronjob.yaml
-  - deployments/nfs-server-deployment.yaml
   - deployments/redis-deployment.yaml
   - secrets
-  - services/nfs-server-service.yaml
   - services/postgres-service.yaml
   - services/redis-service.yaml
   - services/virtuoso-service.yaml
@@ -17,6 +15,5 @@ resources:
   - statefulsets/virtuoso-statefulset.yaml
   - storage/app-logs-persistentvolumeclaim.yaml
   - storage/celery-data-persistentvolumeclaim.yaml
-  - storage/nfs-storage.yaml
   - storage/postgres-backups-persistentvolumeclaim.yaml
   - storage/user-results-persistentvolumeclaim.yaml
