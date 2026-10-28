@@ -32,3 +32,14 @@ spec:
               name: next-frontend
               port:
                 number: 3000
+   # same app reachable on the bare localhost hostname
+   - host: localhost
+     http:
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: next-frontend
+              port:
+                number: 3000
