@@ -58,6 +58,8 @@ spec:
             - -c
             - |
               set -eu
+              # the SealedSecret value ends with a newline: strip it before psql
+              export PGPASSWORD="$(printf '%s' "$PGPASSWORD_RAW" | tr -d '\r\n')"
               exists="$(psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='monitoring'")"
               if [ "$exists" != "1" ]; then
                 echo "Creating read-only monitoring role"
@@ -87,7 +89,7 @@ spec:
                 configMapKeyRef:
                   name: mudis-config
                   key: DB_ADMIN_USER
-            - name: PGPASSWORD
+            - name: PGPASSWORD_RAW
               valueFrom:
                 secretKeyRef:
                   name: db-password-admin
