@@ -5,6 +5,7 @@ metadata:
   annotations:
     argocd.argoproj.io/hook: PreSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-5"
   labels:
     app.kubernetes.io/name: db-migrate
     io.kompose.service: db-migrate
@@ -17,6 +18,7 @@ spec:
         app.kubernetes.io/name: db-migrate
         io.kompose.service: db-migrate
     spec:
+      serviceAccountName: mudis-sa
       restartPolicy: Never
       imagePullSecrets:
         - name: ghcr-pull

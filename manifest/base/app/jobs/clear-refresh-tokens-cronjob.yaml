@@ -23,6 +23,7 @@ spec:
             app.kubernetes.io/name: clear-refresh-tokens
             io.kompose.service: clear-refresh-tokens
         spec:
+          serviceAccountName: mudis-sa
           restartPolicy: Never
           imagePullSecrets:
             - name: ghcr-pull

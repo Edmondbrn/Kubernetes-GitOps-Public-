@@ -5,6 +5,7 @@ metadata:
   annotations:
     argocd.argoproj.io/hook: PreSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-4" # must execute after db migration
   labels:
     app.kubernetes.io/name: celery-data-creation
     io.kompose.service: celery-data-creation
@@ -17,6 +18,7 @@ spec:
         app.kubernetes.io/name: celery-data-creation
         io.kompose.service: celery-data-creation
     spec:
+      serviceAccountName: mudis-sa
       restartPolicy: Never
       imagePullSecrets:
         - name: ghcr-pull

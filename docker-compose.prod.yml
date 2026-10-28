@@ -84,6 +84,7 @@ services:
 
 
   clear_refresh_tokens_cronjob:
+    profiles: ["maintenance"] # one-shot: docker compose run --rm clear_refresh_tokens_cronjob
     image: ${REGISTRY_IMAGE_BACKEND}:${IMAGE_TAG:-latest}
     command: python -m src.crons.runner clear-refresh-tokens
     restart: "no"
@@ -123,6 +124,7 @@ services:
 
 
   clear_user_results_cronjob:
+    profiles: ["maintenance"] # one-shot: docker compose run --rm clear_user_results_cronjob
     image: ${REGISTRY_IMAGE_BACKEND}:${IMAGE_TAG:-latest}
     command: python -m src.crons.runner clear-user-results
     restart: "no"
@@ -163,7 +165,7 @@ services:
 
   celery_data_creation_job:
     image: ${REGISTRY_IMAGE_BACKEND}:${IMAGE_TAG:-latest}
-    command: python -m src.crons.runner clear-user-results
+    command: python -m src.core.celery_cache_runner
     restart: "no"
     user: "1000:1000"
     networks:
@@ -172,7 +174,7 @@ services:
       - .env.prod
     environment:
       - PYTHONUNBUFFERED=1
-      - SERVICE_NAME=clear-user-results
+      - SERVICE_NAME=celery-data-creation
     secrets:
       - source: db_user_password
         target: DB_USER_PASSWORD
@@ -196,6 +198,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db_migrate:
+        condition: service_completed_successfully
     mem_limit: 512m
     mem_reservation: 128m
     cpus: "0.5"
@@ -237,12 +241,6 @@ services:
       - app-logs:/var/log/app
     depends_on:
       db_migrate:
-        condition: service_completed_successfully
-      clear_refresh_tokens_cronjob:
-        condition: service_completed_successfully
-      clear_user_results_cronjob:
-        condition: service_completed_successfully
-      celery_data_creation_job:
         condition: service_completed_successfully
       virtuoso:
         condition: service_healthy
@@ -297,6 +295,8 @@ services:
       - app-logs:/var/log/app
     depends_on:
       db_migrate:
+        condition: service_completed_successfully
+      celery_data_creation_job:
         condition: service_completed_successfully
       virtuoso:
         condition: service_healthy
