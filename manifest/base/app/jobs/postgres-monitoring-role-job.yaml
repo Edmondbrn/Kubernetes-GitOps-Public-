@@ -8,6 +8,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "-4" # after db-migrate, before the exporters roll out
   labels:
     app.kubernetes.io/name: postgres-monitoring-role
+    io.kompose.service: postgres-monitoring-role
 spec:
   backoffLimit: 1
   activeDeadlineSeconds: 300
@@ -15,6 +16,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: postgres-monitoring-role
+        io.kompose.service: postgres-monitoring-role
     spec:
       serviceAccountName: mudis-sa
       restartPolicy: Never

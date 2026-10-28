@@ -129,6 +129,7 @@ spec:
                   - celery-data-creation
                   - clear-refresh-tokens
                   - clear-user-results
+                  - postgres-monitoring-role
       ports:
         - protocol: TCP
           port: 5432
@@ -152,6 +153,7 @@ spec:
           - celery-data-creation
           - clear-refresh-tokens
           - clear-user-results
+          - postgres-monitoring-role
   policyTypes:
     - Egress
   egress:
