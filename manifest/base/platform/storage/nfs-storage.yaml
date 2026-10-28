@@ -4,6 +4,8 @@ metadata:
   name: nfs-csi
   annotations:
      storageclass.kubernetes.io/is-default-class: "false"  # default is local host
+     # Argo CD must create the StorageClass before the PVCs of the same wave
+     argocd.argoproj.io/sync-wave: "-9"
 provisioner: nfs.csi.k8s.io
 parameters:
   server: nfs-server.mudis-dev.svc.cluster.local

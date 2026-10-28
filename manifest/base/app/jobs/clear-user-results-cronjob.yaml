@@ -23,6 +23,7 @@ spec:
             app.kubernetes.io/name: clear-user-results
             io.kompose.service: clear-user-results
         spec:
+          serviceAccountName: mudis-sa
           restartPolicy: Never
           imagePullSecrets:
             - name: ghcr-pull
