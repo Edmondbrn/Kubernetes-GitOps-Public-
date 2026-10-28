@@ -94,6 +94,12 @@ spec:
 
         # k3s runs these control-plane components embedded: scraping them only
         # produces permanently-down targets and false alerts.
+        # CoreDNS monitoring is disabled because its chart-managed Service
+        # lives in kube-system and the AppProject is scoped to monitoring.
+        coreDns:
+          enabled: false
+        kubeDns:
+          enabled: false
         kubeControllerManager:
           enabled: false
         kubeScheduler:
