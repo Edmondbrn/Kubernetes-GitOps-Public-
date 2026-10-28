@@ -1,0 +1,45 @@
+# HTTP availability probes executed by blackbox-exporter.
+# They complement (they do not replace) real application metrics:
+# FastAPI does not expose /metrics yet, Virtuoso has no maintained exporter.
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: fastapi-health
+  labels:
+    app.kubernetes.io/component: monitoring
+spec:
+  jobName: fastapi-health
+  interval: 30s
+  module: http_2xx
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+    path: /probe
+  targets:
+    staticConfig:
+      static:
+        - http://fastapi-backend.mudis-dev.svc.cluster.local:8000/health
+      labels:
+        service: fastapi-backend
+        namespace: mudis-dev
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: Probe
+metadata:
+  name: virtuoso-sparql
+  labels:
+    app.kubernetes.io/component: monitoring
+spec:
+  jobName: virtuoso-sparql
+  interval: 30s
+  module: http_2xx
+  prober:
+    url: blackbox-exporter.monitoring.svc.cluster.local:9115
+    path: /probe
+  targets:
+    staticConfig:
+      static:
+        - http://virtuoso.mudis-dev.svc.cluster.local:8890/sparql
+      labels:
+        service: virtuoso
+        namespace: mudis-dev

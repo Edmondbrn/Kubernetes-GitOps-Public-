@@ -8,5 +8,7 @@ resources:
   - jobs/clear-user-results-cronjob.yaml
   - jobs/clear-refresh-tokens-cronjob.yaml
   - jobs/celery-data-creation-job.yaml
+  - jobs/postgres-monitoring-role-job.yaml
+  - monitoring
   - services/fastapi-backend-service.yaml
   - services/next-frontend-service.yaml

@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - blackbox-exporter-configmap.yaml
+  - blackbox-exporter-deployment.yaml
+  - blackbox-exporter-service.yaml
+  - blackbox-exporter-servicemonitor.yaml
+  - probes.yaml
+  - prometheus-rules.yaml
+  - grafana-admin-sealed.yaml

@@ -267,8 +267,10 @@ check_local_changes() {
 }
 
 deploy_app_of_apps() {
-  log "AppProject and root Application"
-  kubectl apply -f "${REPO_ROOT}/argocd/projects/mudis.yaml"
+  log "AppProjects and root Application"
+  for project in "${REPO_ROOT}"/argocd/projects/*.yaml; do
+    kubectl apply -f "$project"
+  done
   kubectl apply -f "${REPO_ROOT}/argocd/root-app.yaml"
 }
 
@@ -296,6 +298,8 @@ wait_for_applications() {
   local failed=0
   wait_for_application root || failed=1
   wait_for_application platform || failed=1
+  wait_for_application monitoring || failed=1
+  wait_for_application monitoring-addons || failed=1
   wait_for_application mudis || failed=1
   return "$failed"
 }

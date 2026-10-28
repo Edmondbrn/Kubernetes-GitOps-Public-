@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-addons
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2" # after the CRDs, before the app layer
+spec:
+  project: monitoring
+  source:
+    repoURL: https://github.com/Edmondbrn/Kubernetes-GitOps-Public-.git
+    targetRevision: main
+    path: manifest/overlays/k3d/monitoring
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m

@@ -26,7 +26,7 @@ manifest/
                    NetworkPolicies, storage, Postgres / Virtuoso / Redis
   base/app/        Application layer: FastAPI, Celery, Next.js, Jobs and CronJobs
   overlays/k3d/    k3d overlay: namespace, NFS server/StorageClass, platform/app
-                   entry points
+                   and monitoring entry points
 postgres/          Postgres image build context (backup scripts, crontab)
 virtuoso/          Virtuoso image build context
 fastapi_backend/   Dockerfile only (source is private)
@@ -135,16 +135,24 @@ production storage.
 Argo CD v3.5.6 watches this repository and uses an **app-of-apps** layout:
 
 ```
-argocd/root-app.yaml            root Application -> argocd/apps/
-argocd/projects/mudis.yaml      AppProject (repo + destination allow-list)
-argocd/apps/platform.yaml       Application, sync-wave -1
-argocd/apps/mudis.yaml          Application, sync-wave 0
+argocd/root-app.yaml               root Application -> argocd/apps/
+argocd/projects/mudis.yaml         AppProject for the application (mudis-dev)
+argocd/projects/monitoring.yaml    AppProject for the observability stack
+argocd/apps/platform.yaml          Application, sync-wave -1
+argocd/apps/monitoring.yaml        Application (Helm), sync-wave -3
+argocd/apps/monitoring-addons.yaml Application, sync-wave -2
+argocd/apps/mudis.yaml             Application, sync-wave 0
 ```
 
 The `platform` Application owns the namespace, storage, config, SealedSecrets,
 Postgres, Redis, Virtuoso and the NFS server. The `mudis` Application owns the
-FastAPI, Celery and Next.js workloads. Both currently target the `mudis-dev`
-namespace.
+FastAPI, Celery and Next.js workloads plus the Postgres/Redis exporters. Both
+target the `mudis-dev` namespace.
+
+The `monitoring` Application installs `kube-prometheus-stack` (Prometheus,
+Grafana, kube-state-metrics, node-exporter) in the `monitoring` namespace.
+`monitoring-addons` adds blackbox-exporter, HTTP probes, alert rules and the
+Grafana admin SealedSecret. See [Monitoring](#monitoring).
 
 Database migrations run as an Argo CD **`PreSync` Job**
 (`manifest/base/app/jobs/db-migrate-job.yaml`). The FastAPI image no longer runs
@@ -160,10 +168,10 @@ concurrent migrations.
 
 The script installs Argo CD with server-side apply (required because the
 ApplicationSet CRD exceeds the client-side annotation limit), restores the
-Sealed Secrets key, creates the namespace and applies the AppProject and root
-Application.
+Sealed Secrets key, creates the namespace, applies every `argocd/projects/*.yaml`
+and the root Application.
 
-The root Application creates the two child Applications. Their sync policy is
+The root Application creates the four child Applications. Their sync policy is
 `automated` with `prune` and `selfHeal` enabled, so the cluster converges back
 to Git after manual changes and resources removed from Git are pruned.
 
@@ -177,6 +185,46 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 
 The Applications track the `main` branch. The repository is public, so Argo CD
 clones it over HTTPS without repository credentials.
+
+## Monitoring
+
+`kube-prometheus-stack` runs in the `monitoring` namespace with reduced
+requests/limits and 3 days of retention. Alertmanager is intentionally disabled:
+alerts are evaluated and visible in the Prometheus UI, but no notification is
+routed. The k3s control-plane components (controller-manager, scheduler, etcd,
+kube-proxy) are not scraped because k3s runs them embedded.
+
+| Component | Namespace | Notes |
+|---|---|---|
+| Prometheus + Grafana | `monitoring` | Grafana on `http://grafana.localhost` |
+| kube-state-metrics, node-exporter | `monitoring` | cluster / node metrics |
+| blackbox-exporter | `monitoring` | HTTP probes for FastAPI and Virtuoso |
+| postgres-exporter | `mudis-dev` | dedicated read-only `monitoring` Postgres role (`pg_monitor`) |
+| redis-exporter | `mudis-dev` | no auth, Redis is internal only |
+
+Grafana credentials come from the `grafana-admin` SealedSecret. To read the
+password:
+
+```bash
+kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d
+```
+
+Prometheus is available with:
+
+```bash
+kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090
+```
+
+Known limits:
+
+- FastAPI does not expose `/metrics`; it is monitored by availability/latency
+  (`probe_success`, `probe_duration_seconds` on `/health`) and pod metrics, not
+  by per-route HTTP counters.
+- Virtuoso has no maintained Prometheus exporter; same blackbox approach on
+  `/sparql`.
+- Dashboard JSONs are not vendored. Import them in Grafana with **Dashboards →
+  Import**: `9628` (PostgreSQL), `763` (Redis), `1860` (Node Exporter). The
+  kube-prometheus-stack defaults cover cluster, node, pod and API server views.
 
 ## Docker Compose (reference)
 
