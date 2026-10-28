@@ -33,7 +33,12 @@ spec:
               cpu: 50m
               memory: 128Mi
             limits:
-              memory: 512Mi
+              memory: 768Mi
+          sidecar:
+            datasources:
+              # Alertmanager is disabled: hide the dangling datasource
+              alertmanager:
+                enabled: false
           ingress:
             enabled: true
             ingressClassName: traefik
