@@ -16,7 +16,7 @@ spec:
     spec:
       serviceAccountName: mudis-sa
       nodeSelector: # force the NFS pod on the server node
-        kubernetes.io/hostname: k3d-mycluster-server-0
+        kubernetes.io/hostname: k3d-holograph-cluster-server-0
       containers:
         - name: nfs-server
           image: itsthenetwork/nfs-server-alpine:11

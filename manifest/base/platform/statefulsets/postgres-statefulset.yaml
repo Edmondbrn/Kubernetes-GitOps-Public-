@@ -37,7 +37,7 @@ spec:
 
       
       containers:
-        - image: ghcr.io/edmondbrn/mudis_postgres_prod:1.0.0
+        - image: ghcr.io/edmondbrn/holograph-web/mudis_postgres_prod:1.0.0
           name: holographsql
           # Bypass the image's /entrypoint-cron.sh: backups now run in the
           # postgres-backup CronJob

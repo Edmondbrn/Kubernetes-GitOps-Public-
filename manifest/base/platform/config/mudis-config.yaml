@@ -19,7 +19,6 @@ data:
   LOG_FILE_COMPRESS: "true"
   LOG_FILE_MAX_BYTES: "10000000"
   NEXT_FAST_API_URL: http://fastapi-backend:8000
-  NEXT_PUBLIC_API_URL: http://localhost:3000/api/v1
   NEXT_TELEMETRY_DEBUG: "1"
   RATE_LIMITER_REDIS_URL: redis://redis:6379/1
   REFRESH_TOKEN_EXPIRE_DAYS: "7"
@@ -38,7 +37,7 @@ data:
   VIRTUOSO_POOL_ENABLED: "false"
   VIRTUOSO_REDIS_URL: redis://redis:6379/2
   VIRTUOSO_SHORT_MAX: "10"
-  WEB_VIRTUOSO_URL: http://localhost:8890/sparql-auth
+  WEB_VIRTUOSO_URL: http://virtuoso:8890/sparql-auth
 kind: ConfigMap
 metadata:
   name: mudis-config
