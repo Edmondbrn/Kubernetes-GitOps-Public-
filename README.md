@@ -222,9 +222,15 @@ Known limits:
   by per-route HTTP counters.
 - Virtuoso has no maintained Prometheus exporter; same blackbox approach on
   `/sparql`.
-- Dashboard JSONs are not vendored. Import them in Grafana with **Dashboards →
-  Import**: `9628` (PostgreSQL), `763` (Redis), `1860` (Node Exporter). The
+- The PostgreSQL, Redis and Node Exporter dashboards (grafana.com `9628`,
+  `763`, `1860`) are vendored in
+  `manifest/base/monitoring/postgres-redis-node-full-configmap.yaml` as
+  ConfigMaps labelled `grafana_dashboard=1`. The Grafana sidecar provisions them,
+  so they are read-only in the UI: change the exported JSON in Git instead. The
   kube-prometheus-stack defaults cover cluster, node, pod and API server views.
+- Grafana's provider runs with `allowUiUpdates=false` and `disableDeletion=false`:
+  removing a ConfigMap from Git removes its dashboard, and UI edits are refused
+  (`400 Cannot save provisioned dashboard`).
 
 ## Docker Compose (reference)
 
