@@ -8,3 +8,4 @@ resources:
   - probes.yaml
   - prometheus-rules.yaml
   - grafana-admin-sealed.yaml
+  - postgres-redis-node-full-configmap.yaml
