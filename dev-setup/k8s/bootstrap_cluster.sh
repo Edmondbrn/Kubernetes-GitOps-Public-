@@ -111,7 +111,7 @@ nfs_manifest_selector() {
       print
       exit
     }
-  ' "${REPO_ROOT}/manifest/base/platform/deployments/nfs-server-deployment.yaml"
+  ' "${REPO_ROOT}/manifest/overlays/k3d/platform/nfs-server-deployment.yaml"
 }
 
 ensure_cluster() {
@@ -169,67 +169,58 @@ install_nfs_csi() {
   kubectl -n kube-system rollout status daemonset/csi-nfs-node --timeout=180s
 }
 
+
+# Restores the Sealed Secrets key backup (idempotent, multi-key safe).
+restore_sealed_key() {
+  log "Restoring Sealed Secrets key(s) from ${SEALED_KEY_BACKUP}"
+  kubectl apply -f "$SEALED_KEY_BACKUP" \
+    || die "Cannot apply ${SEALED_KEY_BACKUP}"
+}
+
+# Waits until the controller has created at least one key.
+wait_for_sealed_key() {
+  local i
+  for i in $(seq 1 30); do
+    kubectl -n kube-system get secret -l "$SEALED_KEY_LABEL" -o name 2>/dev/null \
+      | grep -q . && return 0
+    sleep 2
+  done
+  return 1
+}
+
+# Dumps all active keys (not committed, 0600).
+backup_sealed_key() {
+  mkdir -p "$(dirname "$SEALED_KEY_BACKUP")"
+  ( umask 077
+    kubectl -n kube-system get secret -l "$SEALED_KEY_LABEL" -o yaml \
+      > "$SEALED_KEY_BACKUP" )
+}
+
+install_controller() {
+  kubectl -n kube-system get deployment sealed-secrets-controller >/dev/null 2>&1 \
+    || kubectl apply -f "https://github.com/bitnami/sealed-secrets/releases/download/${SEALED_SECRETS_VERSION}/controller.yaml"
+  kubectl -n kube-system rollout status deployment/sealed-secrets-controller --timeout=180s
+}
+
 install_sealed_secrets() {
   log "Sealed Secrets ${SEALED_SECRETS_VERSION}"
-
   if [[ -f "$SEALED_KEY_BACKUP" ]]; then
-    local key_ref key_ns key_name backup_crt existing_crt
-
-    key_ref="$(kubectl get -f "$SEALED_KEY_BACKUP" \
-      -o jsonpath='{.metadata.namespace}/{.metadata.name}' 2>/dev/null || true)"
-    [[ -n "$key_ref" ]] || die "Cannot read the Sealed Secrets key manifest: ${SEALED_KEY_BACKUP}"
-    key_ns="${key_ref%%/*}"
-    key_name="${key_ref#*/}"
-    backup_crt="$(kubectl get -f "$SEALED_KEY_BACKUP" \
-      -o jsonpath='{.data.tls\.crt}' 2>/dev/null || true)"
-
-    existing_crt="$(kubectl -n "$key_ns" get secret "$key_name" \
-      -o jsonpath='{.data.tls\.crt}' 2>/dev/null || true)"
-
-    if [[ -n "$existing_crt" && "$existing_crt" == "$backup_crt" ]]; then
-      log "Sealed Secrets key '${key_name}' is already restored"
-    else
-      if [[ -n "$existing_crt" ]]; then
-        warn "Secret '${key_name}' exists with a different key: replacing it with the backup"
-        kubectl -n "$key_ns" delete secret "$key_name"
-      fi
-      log "Restoring the Sealed Secrets private key from ${SEALED_KEY_BACKUP}"
-      kubectl apply -f "$SEALED_KEY_BACKUP"
-    fi
+    restore_sealed_key
   elif (( ALLOW_NEW_SEALED_KEY )); then
-    warn "No key backup at ${SEALED_KEY_BACKUP}: a new key will be generated."
-    warn "The SealedSecrets committed in this repository will NOT decrypt."
+    warn "No backup: a new key will be generated, committed SealedSecrets will NOT decrypt."
   else
-    die "No Sealed Secrets key backup at ${SEALED_KEY_BACKUP}.
-     The SealedSecrets in this repository cannot be decrypted without it.
-     Restore the key, or rerun with --allow-new-sealed-key and reseal every secret."
+    die "No key backup at ${SEALED_KEY_BACKUP}. Restore it or use --allow-new-sealed-key."
   fi
 
-  if ! kubectl -n kube-system get deployment sealed-secrets-controller >/dev/null 2>&1; then
-    kubectl apply -f "https://github.com/bitnami/sealed-secrets/releases/download/${SEALED_SECRETS_VERSION}/controller.yaml"
-  fi
-  kubectl -n kube-system rollout status deployment/sealed-secrets-controller --timeout=180s
-
-  # If the controller was already running with another key, restart it so the
-  # restored key is loaded.
-  kubectl -n kube-system rollout restart deployment/sealed-secrets-controller >/dev/null
-  kubectl -n kube-system rollout status deployment/sealed-secrets-controller --timeout=180s
+  install_controller
 
   if [[ ! -f "$SEALED_KEY_BACKUP" ]]; then
-    local i
-    for i in $(seq 1 30); do
-      kubectl get secret -n kube-system -l "$SEALED_KEY_LABEL" -o name 2>/dev/null | grep -q . && break
-      sleep 2
-    done
-    kubectl get secret -n kube-system -l "$SEALED_KEY_LABEL" -o name 2>/dev/null | grep -q . \
-      || die "Sealed Secrets did not create its private key"
-
-    log "Saving the new private key to ${SEALED_KEY_BACKUP}"
-    mkdir -p "$(dirname "$SEALED_KEY_BACKUP")"
-    ( umask 077; kubectl get secret -n kube-system -l "$SEALED_KEY_LABEL" -o yaml > "$SEALED_KEY_BACKUP" )
-    warn "Back up ${SEALED_KEY_BACKUP} outside the cluster: without it the committed SealedSecrets are lost."
+    wait_for_sealed_key || die "Sealed Secrets did not create its private key"
+    backup_sealed_key
+    warn "Back up ${SEALED_KEY_BACKUP} outside the cluster."
   fi
 }
+
 
 install_argocd() {
   log "Argo CD ${ARGOCD_VERSION}"

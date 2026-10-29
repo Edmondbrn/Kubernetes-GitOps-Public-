@@ -80,7 +80,7 @@ spec:
               cpu: "750m"
             limits: # for runtime step
               memory: "768Mi"
-              cpu: "750m"
+              cpu: "1500m"
           startupProbe:
             exec:
               command:
