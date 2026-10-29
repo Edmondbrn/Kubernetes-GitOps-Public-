@@ -11,7 +11,7 @@
 
 
 
-[![Kubernetes cluster banner](./assets/banner.png, "Kubernetes cluster presentation")](https://youtu.be/z8W0oGD90iM)
+[![Kubernetes cluster banner](assets/banner.png, "Kubernetes cluster presentation")](https://youtu.be/z8W0oGD90iM)
 
 
 **Deployment-only repository.** The application source code (FastAPI, Next.js,
