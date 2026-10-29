@@ -9,6 +9,11 @@
 ![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white)
 ![RDF](https://img.shields.io/badge/RDF-E10098?style=for-the-badge&logo=semanticweb&logoColor=white)
 
+
+
+[![Kubernetes cluster banner](./assets/banner.png, "Kubernetes cluster presentation")](https://youtu.be/z8W0oGD90iM)
+
+
 **Deployment-only repository.** The application source code (FastAPI, Next.js,
 Virtuoso loaders, documentation site) is private and not open source yet. This
 repository publishes the container/deployment assets and the Kubernetes/GitOps
@@ -214,6 +219,8 @@ Prometheus is available with:
 ```bash
 kubectl -n monitoring port-forward svc/kube-prometheus-stack-prometheus 9090:9090
 ```
+
+Grafana is available at **`grafana.localhost`**
 
 Known limits:
 
